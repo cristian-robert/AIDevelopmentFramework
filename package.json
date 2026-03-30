@@ -1,0 +1,28 @@
+{
+  "name": "ai-development-framework",
+  "version": "0.1.0",
+  "description": "The system around the AI that makes the AI reliable. Structured AI-assisted development with the PIV+E loop.",
+  "bin": {
+    "ai-framework": "./cli/index.js"
+  },
+  "keywords": [
+    "ai",
+    "claude",
+    "claude-code",
+    "development-framework",
+    "agentic",
+    "piv-loop"
+  ],
+  "author": "Cristian-Robert Iosef",
+  "license": "MIT",
+  "files": [
+    "cli/",
+    ".claude/",
+    "docs/",
+    "CLAUDE.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
