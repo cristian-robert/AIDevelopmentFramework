@@ -25,7 +25,7 @@ Usage:
   npx ai-framework --version     Show version
   npx ai-framework --help        Show this help message
 
-Docs: https://github.com/AIDevelopmentFramework/AIDevelopmentFramework
+Docs: https://github.com/cristian-robert/AIDevelopmentFramework
     `);
     break;
   default:
