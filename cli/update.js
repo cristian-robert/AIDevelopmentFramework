@@ -1,34 +1,18 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { PROTECTED_FILES, PROTECTED_DIRS } = require('./protected-files');
 
 const REPO = 'cristian-robert/AIDevelopmentFramework';
 const BRANCH = 'main';
 const TARBALL_URL = 'https://github.com/' + REPO + '/archive/refs/heads/' + BRANCH + '.tar.gz';
 
-// Files that are project-specific and should NOT be overwritten
-var PROTECTED_FILES = [
-  '.claude/agents/architect-agent/index.md',
-  '.claude/agents/architect-agent/shared/patterns.md',
-  '.claude/agents/architect-agent/decisions/log.md',
-  '.claude/agents/tester-agent/test-patterns.md',
-  '.claude/agents/tester-agent/auth-state.md',
-  '.claude/agents/mobile-tester-agent/screen-patterns.md',
-  '.claude/references/code-patterns.md',
-  '.claude/settings.local.json',
-];
-
-// Directories with project-specific content that should NOT be overwritten
-var PROTECTED_DIRS = [
-  '.claude/agents/architect-agent/modules',
-  '.claude/agents/architect-agent/frontend',
-];
-
-function copyDirRecursive(src, dest, protectedFiles, protectedDirs) {
+function copyDirRecursive(src, dest) {
   if (!fs.existsSync(dest)) {
     fs.mkdirSync(dest, { recursive: true });
   }
   var entries = fs.readdirSync(src, { withFileTypes: true });
+  var stats = { updated: 0, skipped: 0 };
   for (var i = 0; i < entries.length; i++) {
     var entry = entries[i];
     var srcPath = path.join(src, entry.name);
@@ -36,20 +20,28 @@ function copyDirRecursive(src, dest, protectedFiles, protectedDirs) {
     var relativePath = path.relative(process.cwd(), destPath);
 
     if (entry.isDirectory()) {
-      // Skip protected directories entirely
-      if (protectedDirs.some(function (d) { return relativePath.startsWith(d); })) {
+      var isProtectedDir = PROTECTED_DIRS.some(function (d) {
+        return relativePath === d || relativePath.startsWith(d + '/');
+      });
+      if (isProtectedDir && fs.existsSync(destPath)) {
+        console.log('  Skipped (project-specific): ' + relativePath + '/');
+        stats.skipped++;
         continue;
       }
-      copyDirRecursive(srcPath, destPath, protectedFiles, protectedDirs);
+      var sub = copyDirRecursive(srcPath, destPath);
+      stats.updated += sub.updated;
+      stats.skipped += sub.skipped;
     } else {
-      // Skip protected files
-      if (protectedFiles.indexOf(relativePath) !== -1) {
+      if (PROTECTED_FILES.indexOf(relativePath) !== -1 && fs.existsSync(destPath)) {
         console.log('  Skipped (project-specific): ' + relativePath);
+        stats.skipped++;
         continue;
       }
       fs.copyFileSync(srcPath, destPath);
+      stats.updated++;
     }
   }
+  return stats;
 }
 
 function main() {
@@ -76,35 +68,40 @@ function main() {
 
     if (fs.existsSync(sourceClaudeDir)) {
       console.log('Updating .claude/ (preserving project-specific files)...');
-      copyDirRecursive(sourceClaudeDir, targetClaudeDir, PROTECTED_FILES, PROTECTED_DIRS);
-    }
+      console.log('');
+      var stats = copyDirRecursive(sourceClaudeDir, targetClaudeDir);
 
-    // Update docs (but not docs/plans/ which contains project plans)
-    var sourceDocsDir = path.join(tmpDir, 'docs');
-    var targetDocsDir = path.join(process.cwd(), 'docs');
-    if (fs.existsSync(sourceDocsDir)) {
-      console.log('Updating docs/...');
-      var docEntries = fs.readdirSync(sourceDocsDir, { withFileTypes: true });
-      for (var i = 0; i < docEntries.length; i++) {
-        var entry = docEntries[i];
-        if (entry.isFile()) {
-          fs.copyFileSync(
-            path.join(sourceDocsDir, entry.name),
-            path.join(targetDocsDir, entry.name)
-          );
+      // Update docs (but not docs/plans/ or docs/superpowers/)
+      var sourceDocsDir = path.join(tmpDir, 'docs');
+      var targetDocsDir = path.join(process.cwd(), 'docs');
+      if (fs.existsSync(sourceDocsDir)) {
+        console.log('');
+        console.log('Updating docs/...');
+        if (!fs.existsSync(targetDocsDir)) {
+          fs.mkdirSync(targetDocsDir, { recursive: true });
         }
-        // Skip docs/plans/ and docs/superpowers/ — project-specific
+        var docEntries = fs.readdirSync(sourceDocsDir, { withFileTypes: true });
+        for (var i = 0; i < docEntries.length; i++) {
+          var entry = docEntries[i];
+          if (entry.isFile()) {
+            fs.copyFileSync(
+              path.join(sourceDocsDir, entry.name),
+              path.join(targetDocsDir, entry.name)
+            );
+            stats.updated++;
+          }
+        }
       }
-    }
 
-    console.log('');
-    console.log('Update complete!');
-    console.log('');
-    console.log('Updated: commands, agent protocols, rules templates, hooks, skills, docs');
-    console.log('Preserved: agent knowledge bases, test patterns, auth state, code patterns, settings, plans');
-    console.log('');
-    console.log('Run /setup to check if new plugins are required.');
-    console.log('');
+      console.log('');
+      console.log('Update complete!');
+      console.log('');
+      console.log('  Updated: ' + stats.updated + ' files');
+      console.log('  Skipped: ' + stats.skipped + ' files (preserved your customizations)');
+      console.log('');
+      console.log('Run /setup to check if new plugins are required.');
+      console.log('');
+    }
   } catch (err) {
     console.error('Update failed: ' + err.message);
     process.exit(1);
@@ -112,7 +109,7 @@ function main() {
     try {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     } catch (e) {
-      // ignore cleanup errors
+      // ignore
     }
   }
 }
