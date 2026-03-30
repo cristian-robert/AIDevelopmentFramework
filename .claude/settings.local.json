@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(ls *)",
+      "Bash(tree *)",
+      "Bash(cat *)",
+      "Bash(mkdir *)",
+      "Bash(npx *)",
+      "Bash(npm *)",
+      "Bash(pnpm *)",
+      "Bash(node *)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "mcp__shadcn__search_items_in_registries",
+      "mcp__shadcn__view_items_in_registries",
+      "mcp__shadcn__get_item_examples_from_registries",
+      "mcp__shadcn__get_add_command_for_items",
+      "mcp__shadcn__list_items_in_registries"
+    ],
+    "deny": []
+  },
+  "enableAllProjectMcpServers": true
+}
