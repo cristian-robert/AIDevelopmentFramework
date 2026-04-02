@@ -1,4 +1,5 @@
-// Files that contain project-specific content and should never be blindly overwritten
+// Files that contain project-specific content and should never be blindly overwritten.
+// All paths are relative to the PROJECT ROOT (not .claude/).
 var PROTECTED_FILES = [
   // Project CLAUDE.md (user may have their own)
   'CLAUDE.md',
@@ -22,14 +23,16 @@ var PROTECTED_FILES = [
   '.claude/settings.local.json',
 ];
 
-// Directories with project-specific content (architect-agent module knowledge)
+// Directories with project-specific content (architect-agent module knowledge).
+// All paths are relative to the PROJECT ROOT.
 var PROTECTED_DIRS = [
   '.claude/agents/architect-agent/modules',
   '.claude/agents/architect-agent/frontend',
 ];
 
-// Files that users commonly customize (rules, hooks)
-// These get special "merge" treatment — ask user what to do
+// Files that users commonly customize (rules, hooks).
+// These get special "merge" treatment — ask user what to do.
+// All paths are relative to the PROJECT ROOT.
 var CUSTOMIZABLE_FILES = [
   '.claude/rules/_global.md',
   '.claude/rules/backend.md',
@@ -44,8 +47,19 @@ var CUSTOMIZABLE_FILES = [
   '.claude/hooks/session-primer.sh',
 ];
 
+// Helper: normalize a path to project-root-relative format.
+// Call sites that compare against these lists MUST use this function
+// to ensure the path prefix matches (e.g., '.claude/rules/backend.md').
+function toProjectRelative(filePath, rootDir) {
+  var path = require('path');
+  var abs = path.resolve(filePath);
+  var root = path.resolve(rootDir);
+  return path.relative(root, abs).split(path.sep).join('/');
+}
+
 module.exports = {
   PROTECTED_FILES: PROTECTED_FILES,
   PROTECTED_DIRS: PROTECTED_DIRS,
   CUSTOMIZABLE_FILES: CUSTOMIZABLE_FILES,
+  toProjectRelative: toProjectRelative,
 };

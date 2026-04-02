@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const readline = require('readline');
-const { PROTECTED_FILES, PROTECTED_DIRS, CUSTOMIZABLE_FILES } = require('./protected-files');
+const { PROTECTED_FILES, PROTECTED_DIRS, CUSTOMIZABLE_FILES, toProjectRelative } = require('./protected-files');
 
 const REPO = 'cristian-robert/AIDevelopmentFramework';
 const BRANCH = 'main';
@@ -19,21 +19,12 @@ function ask(question) {
   });
 }
 
-function copyDirRecursive(src, dest) {
-  if (!fs.existsSync(dest)) {
-    fs.mkdirSync(dest, { recursive: true });
+function copyFileSimple(srcPath, destPath) {
+  var destDir = path.dirname(destPath);
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true });
   }
-  var entries = fs.readdirSync(src, { withFileTypes: true });
-  for (var i = 0; i < entries.length; i++) {
-    var entry = entries[i];
-    var srcPath = path.join(src, entry.name);
-    var destPath = path.join(dest, entry.name);
-    if (entry.isDirectory()) {
-      copyDirRecursive(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
-    }
-  }
+  fs.copyFileSync(srcPath, destPath);
 }
 
 function downloadAndExtract(tmpDir) {
@@ -50,18 +41,15 @@ function downloadAndExtract(tmpDir) {
 
 function getLocalFallbackDir() {
   var frameworkDir = path.join(__dirname, '..');
-  var localClaudeDir = path.join(frameworkDir, '.claude');
-  if (fs.existsSync(localClaudeDir)) {
+  if (fs.existsSync(path.join(frameworkDir, '.claude'))) {
     return frameworkDir;
   }
   return null;
 }
 
 function isTemplateContent(filePath) {
-  // Check if a file still contains only template/placeholder content
   try {
     var content = fs.readFileSync(filePath, 'utf-8');
-    // Files that are still templates have these markers
     if (content.includes('> Populated by /create-rules')) return true;
     if (content.includes('> Populated when /create-rules')) return true;
     if (content.includes('> No decisions recorded yet')) return true;
@@ -73,57 +61,79 @@ function isTemplateContent(filePath) {
   }
 }
 
-function detectConflicts(sourceDir, targetDir) {
-  var conflicts = { protected: [], customized: [], safe: [] };
+function cleanupTmpDir(tmpDir) {
+  try {
+    if (fs.existsSync(tmpDir)) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  } catch (e) {
+    // Best-effort cleanup
+  }
+}
 
-  function scan(src, dest, relBase) {
-    if (!fs.existsSync(src)) return;
-    var entries = fs.readdirSync(src, { withFileTypes: true });
+// Collect all files from source, compute project-root-relative paths, classify them
+function collectSourceFiles(sourceDir, projectRoot) {
+  var files = [];
+
+  function walk(dir) {
+    var entries = fs.readdirSync(dir, { withFileTypes: true });
     for (var i = 0; i < entries.length; i++) {
       var entry = entries[i];
-      var srcPath = path.join(src, entry.name);
-      var destPath = path.join(dest, entry.name);
-      var relPath = relBase ? relBase + '/' + entry.name : entry.name;
-
+      var srcPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        scan(srcPath, destPath, relPath);
+        walk(srcPath);
       } else {
-        if (!fs.existsSync(destPath)) {
-          conflicts.safe.push(relPath);
-        } else if (PROTECTED_FILES.indexOf(relPath) !== -1) {
-          // Check if protected file has been customized (no longer template)
-          if (!isTemplateContent(destPath)) {
-            conflicts.protected.push(relPath);
-          } else {
-            // Still template content — safe to overwrite
-            conflicts.safe.push(relPath);
-          }
-        } else if (CUSTOMIZABLE_FILES.indexOf(relPath) !== -1) {
-          // Check if content actually differs
-          var srcContent = fs.readFileSync(srcPath, 'utf-8');
-          var destContent = fs.readFileSync(destPath, 'utf-8');
-          if (srcContent !== destContent) {
-            conflicts.customized.push(relPath);
-          } else {
-            conflicts.safe.push(relPath);
-          }
-        } else {
-          conflicts.safe.push(relPath);
-        }
+        // Compute the project-root-relative path this file WOULD have
+        var relFromSource = path.relative(sourceDir, srcPath).split(path.sep).join('/');
+        files.push({ srcPath: srcPath, relPath: relFromSource });
       }
     }
   }
 
-  scan(sourceDir, targetDir, '');
+  walk(sourceDir);
+  return files;
+}
+
+function detectConflicts(sourceDir, targetDir, projectRoot) {
+  var conflicts = { protected: [], customized: [], safe: [] };
+  var files = collectSourceFiles(sourceDir, projectRoot);
+
+  for (var i = 0; i < files.length; i++) {
+    var relPath = files[i].relPath;
+    var srcPath = files[i].srcPath;
+    var destPath = path.join(targetDir, relPath);
+
+    // Compute project-root-relative path for matching against protection lists
+    var projectRelPath = toProjectRelative(destPath, projectRoot);
+
+    if (!fs.existsSync(destPath)) {
+      conflicts.safe.push(relPath);
+    } else if (PROTECTED_FILES.indexOf(projectRelPath) !== -1) {
+      if (!isTemplateContent(destPath)) {
+        conflicts.protected.push(relPath);
+      } else {
+        conflicts.safe.push(relPath);
+      }
+    } else if (CUSTOMIZABLE_FILES.indexOf(projectRelPath) !== -1) {
+      var srcContent = fs.readFileSync(srcPath, 'utf-8');
+      var destContent = fs.readFileSync(destPath, 'utf-8');
+      if (srcContent !== destContent) {
+        conflicts.customized.push(relPath);
+      } else {
+        conflicts.safe.push(relPath);
+      }
+    } else {
+      conflicts.safe.push(relPath);
+    }
+  }
+
   return conflicts;
 }
 
-function smartCopy(sourceDir, targetDir, strategy, customizedAction) {
-  // strategy: 'fresh' | 'smart'
-  // customizedAction: 'keep' | 'overwrite' | 'backup'
+function smartCopy(sourceDir, targetDir, projectRoot, strategy, customizedAction) {
   var stats = { created: 0, updated: 0, skipped: 0, backedUp: 0 };
 
-  function copy(src, dest, relBase) {
+  function copy(src, dest) {
     if (!fs.existsSync(dest)) {
       fs.mkdirSync(dest, { recursive: true });
     }
@@ -132,32 +142,37 @@ function smartCopy(sourceDir, targetDir, strategy, customizedAction) {
       var entry = entries[i];
       var srcPath = path.join(src, entry.name);
       var destPath = path.join(dest, entry.name);
-      var relPath = relBase ? relBase + '/' + entry.name : entry.name;
+      var projectRelPath = toProjectRelative(destPath, projectRoot);
 
       if (entry.isDirectory()) {
-        // Skip protected directories in smart mode
         if (strategy === 'smart') {
           var isProtectedDir = PROTECTED_DIRS.some(function (d) {
-            return relPath === d || relPath.startsWith(d + '/');
+            return projectRelPath === d || projectRelPath.startsWith(d + '/');
           });
           if (isProtectedDir && fs.existsSync(destPath)) {
-            stats.skipped++;
+            // Count actual files in the directory for accurate reporting
+            try {
+              var dirFiles = fs.readdirSync(destPath, { recursive: true });
+              stats.skipped += dirFiles.length || 1;
+            } catch (e) {
+              stats.skipped++;
+            }
             continue;
           }
         }
-        copy(srcPath, destPath, relPath);
+        copy(srcPath, destPath);
       } else {
         var destExists = fs.existsSync(destPath);
 
         if (strategy === 'smart' && destExists) {
           // Protected file with real content — never overwrite
-          if (PROTECTED_FILES.indexOf(relPath) !== -1 && !isTemplateContent(destPath)) {
+          if (PROTECTED_FILES.indexOf(projectRelPath) !== -1 && !isTemplateContent(destPath)) {
             stats.skipped++;
             continue;
           }
 
           // Customized file — apply user's chosen action
-          if (CUSTOMIZABLE_FILES.indexOf(relPath) !== -1) {
+          if (CUSTOMIZABLE_FILES.indexOf(projectRelPath) !== -1) {
             var srcContent = fs.readFileSync(srcPath, 'utf-8');
             var destContent = fs.readFileSync(destPath, 'utf-8');
             if (srcContent !== destContent) {
@@ -165,7 +180,9 @@ function smartCopy(sourceDir, targetDir, strategy, customizedAction) {
                 stats.skipped++;
                 continue;
               } else if (customizedAction === 'backup') {
-                var backupPath = destPath + '.backup';
+                // Use timestamped backup name to avoid overwriting previous backups
+                var timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                var backupPath = destPath + '.' + timestamp + '.backup';
                 fs.copyFileSync(destPath, backupPath);
                 fs.copyFileSync(srcPath, destPath);
                 stats.backedUp++;
@@ -187,7 +204,7 @@ function smartCopy(sourceDir, targetDir, strategy, customizedAction) {
     }
   }
 
-  copy(sourceDir, targetDir, '');
+  copy(sourceDir, targetDir);
   return stats;
 }
 
@@ -268,6 +285,7 @@ async function main() {
       sourceDir = fallback;
     } else {
       console.error('No framework source available. Check your internet connection.');
+      cleanupTmpDir(tmpDir);
       rl.close();
       process.exit(1);
     }
@@ -277,32 +295,33 @@ async function main() {
   var customizedAction = 'overwrite';
 
   if (hasClaudeDir || hasCLAUDEmd) {
-    // Existing installation detected — scan for conflicts
     console.log('Existing configuration detected. Scanning for conflicts...');
     console.log('');
 
-    var conflicts = detectConflicts(
-      path.join(sourceDir, '.claude'),
-      path.join(targetDir, '.claude')
-    );
-
-    // Also check CLAUDE.md
-    if (hasCLAUDEmd) {
-      conflicts.protected.push('CLAUDE.md');
+    // Scan .claude/ directory for conflicts
+    var claudeConflicts = { protected: [], customized: [], safe: [] };
+    var sourceClaudeDir = path.join(sourceDir, '.claude');
+    if (fs.existsSync(sourceClaudeDir)) {
+      claudeConflicts = detectConflicts(sourceClaudeDir, path.join(targetDir, '.claude'), targetDir);
     }
 
-    if (conflicts.protected.length > 0) {
+    // Check CLAUDE.md separately
+    if (hasCLAUDEmd && !isTemplateContent(path.join(targetDir, 'CLAUDE.md'))) {
+      claudeConflicts.protected.push('CLAUDE.md');
+    }
+
+    if (claudeConflicts.protected.length > 0) {
       console.log('  Project-specific files (will be preserved):');
-      for (var i = 0; i < conflicts.protected.length; i++) {
-        console.log('    ' + conflicts.protected[i]);
+      for (var i = 0; i < claudeConflicts.protected.length; i++) {
+        console.log('    ' + claudeConflicts.protected[i]);
       }
       console.log('');
     }
 
-    if (conflicts.customized.length > 0) {
+    if (claudeConflicts.customized.length > 0) {
       console.log('  Modified files (differ from framework defaults):');
-      for (var j = 0; j < conflicts.customized.length; j++) {
-        console.log('    ' + conflicts.customized[j]);
+      for (var j = 0; j < claudeConflicts.customized.length; j++) {
+        console.log('    ' + claudeConflicts.customized[j]);
       }
       console.log('');
 
@@ -322,8 +341,8 @@ async function main() {
       console.log('');
     }
 
-    if (conflicts.safe.length > 0) {
-      console.log('  New/unchanged files: ' + conflicts.safe.length + ' (will be installed)');
+    if (claudeConflicts.safe.length > 0) {
+      console.log('  New/unchanged files: ' + claudeConflicts.safe.length + ' (will be installed)');
       console.log('');
     }
 
@@ -332,29 +351,48 @@ async function main() {
 
   // Install .claude/
   console.log('Installing framework...');
-  var claudeStats = smartCopy(
+  var stats = smartCopy(
     path.join(sourceDir, '.claude'),
     path.join(targetDir, '.claude'),
+    targetDir,
     strategy,
     customizedAction
   );
 
-  // Install docs/ (but not project-specific plans)
+  // Install CLAUDE.md from framework source (if not protected)
+  var claudeMdSource = path.join(sourceDir, 'CLAUDE.md');
+  if (fs.existsSync(claudeMdSource)) {
+    var claudeMdDest = path.join(targetDir, 'CLAUDE.md');
+    if (!fs.existsSync(claudeMdDest)) {
+      copyFileSimple(claudeMdSource, claudeMdDest);
+      stats.created++;
+    } else if (strategy === 'fresh') {
+      copyFileSimple(claudeMdSource, claudeMdDest);
+      stats.updated++;
+    }
+    // In 'smart' mode, CLAUDE.md is handled by the protection logic above
+  }
+
+  // Install docs/ (methodology guides only, not project-specific plans)
   var docsSource = path.join(sourceDir, 'docs');
   if (fs.existsSync(docsSource)) {
+    var docsTarget = path.join(targetDir, 'docs');
+    if (!fs.existsSync(docsTarget)) {
+      fs.mkdirSync(docsTarget, { recursive: true });
+    }
     var docsEntries = fs.readdirSync(docsSource, { withFileTypes: true });
     for (var k = 0; k < docsEntries.length; k++) {
       var entry = docsEntries[k];
       if (entry.isFile()) {
-        var docsTarget = path.join(targetDir, 'docs');
-        if (!fs.existsSync(docsTarget)) {
-          fs.mkdirSync(docsTarget, { recursive: true });
+        var srcPath = path.join(docsSource, entry.name);
+        var destPath = path.join(docsTarget, entry.name);
+        var existed = fs.existsSync(destPath);
+        fs.copyFileSync(srcPath, destPath);
+        if (existed) {
+          stats.updated++;
+        } else {
+          stats.created++;
         }
-        fs.copyFileSync(
-          path.join(docsSource, entry.name),
-          path.join(docsTarget, entry.name)
-        );
-        claudeStats.created++;
       }
       // Skip docs/plans/ and docs/superpowers/ — project-specific
     }
@@ -385,11 +423,11 @@ async function main() {
   console.log('');
   console.log('Setup complete!');
   console.log('');
-  console.log('  Created:  ' + claudeStats.created + ' files');
-  console.log('  Updated:  ' + claudeStats.updated + ' files');
-  console.log('  Skipped:  ' + claudeStats.skipped + ' files (preserved your customizations)');
-  if (claudeStats.backedUp > 0) {
-    console.log('  Backed up: ' + claudeStats.backedUp + ' files (saved as .backup)');
+  console.log('  Created:  ' + stats.created + ' files');
+  console.log('  Updated:  ' + stats.updated + ' files');
+  console.log('  Skipped:  ' + stats.skipped + ' files (preserved your customizations)');
+  if (stats.backedUp > 0) {
+    console.log('  Backed up: ' + stats.backedUp + ' files (saved as .backup)');
   }
   console.log('');
   console.log('  .claude/commands/    10 pipeline commands');
@@ -406,13 +444,7 @@ async function main() {
   console.log('  3. Run /start to begin');
   console.log('');
 
-  // Cleanup
-  try {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  } catch (e) {
-    // ignore
-  }
-
+  cleanupTmpDir(tmpDir);
   rl.close();
 }
 
