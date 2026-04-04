@@ -177,7 +177,7 @@ function testSearchReturnsRelevantResults() {
     assert(typeof result.total === 'number', 'total should be a number');
 
     const top = result.results[0];
-    assert(top.file === 'oauth2-patterns.md', `top result should be oauth2-patterns.md, got ${top.file}`);
+    assert(top.file === 'wiki/oauth2-patterns.md', `top result should be wiki/oauth2-patterns.md, got ${top.file}`);
     assert(typeof top.score === 'number', 'score should be a number');
     assert(typeof top.title === 'string', 'title should be a string');
     assert(Array.isArray(top.tags), 'tags should be an array');
@@ -207,8 +207,8 @@ function testSearchFilterByType() {
     // database-indexing (architecture type) should NOT appear
     const files = result.results.map((r) => r.file);
     assert(
-      !files.includes('database-indexing.md'),
-      'database-indexing.md (architecture type) should be excluded'
+      !files.includes('wiki/database-indexing.md'),
+      'wiki/database-indexing.md (architecture type) should be excluded'
     );
 
     pass(name);
@@ -235,8 +235,8 @@ function testSearchFilterByTag() {
 
     // auth articles should NOT appear (they don't have database tag)
     const files = result.results.map((r) => r.file);
-    assert(!files.includes('oauth2-patterns.md'), 'oauth2-patterns.md should be excluded (no database tag)');
-    assert(!files.includes('jwt-guide.md'), 'jwt-guide.md should be excluded (no database tag)');
+    assert(!files.includes('wiki/oauth2-patterns.md'), 'wiki/oauth2-patterns.md should be excluded (no database tag)');
+    assert(!files.includes('wiki/jwt-guide.md'), 'wiki/jwt-guide.md should be excluded (no database tag)');
 
     pass(name);
   } catch (err) {

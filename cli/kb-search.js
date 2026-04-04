@@ -23,7 +23,7 @@ function parseFrontmatter(content) {
   let i = 0;
 
   while (i < lines.length) {
-    const line = lines[i];
+    const line = lines[i].replace(/\r$/, '');
     const kv = line.match(/^(\w[\w-]*):\s*(.*)$/);
     if (!kv) { i++; continue; }
 
@@ -143,8 +143,9 @@ function loadIndex() {
     const anyNewer = wikiFiles.some(
       (f) => fs.statSync(path.join(WIKI_DIR, f)).mtimeMs > indexMtime
     );
-    if (anyNewer) return buildIndex();
-    return JSON.parse(fs.readFileSync(INDEX_FILE, 'utf-8'));
+    const index = JSON.parse(fs.readFileSync(INDEX_FILE, 'utf-8'));
+    if (anyNewer || wikiFiles.length !== index.docs.length) return buildIndex();
+    return index;
   }
   return buildIndex();
 }
@@ -172,7 +173,7 @@ function search(query, opts = {}) {
         const idf = index.idf[term] || 0;
         score += tf * idf;
       }
-      return { ...doc, score };
+      return { ...doc, file: 'wiki/' + doc.file, score };
     })
     .filter((doc) => doc.score > 0)
     .sort((a, b) => b.score - a.score);
