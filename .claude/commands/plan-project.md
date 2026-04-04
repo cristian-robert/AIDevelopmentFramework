@@ -89,6 +89,7 @@ Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value. If confi
 6. Run: `KB_PATH=<kb-path> node cli/kb-search.js index`
 
 Stage knowledge base files for commit:
+
 ```bash
 git add <kb-path>/wiki/
 ```
@@ -117,6 +118,7 @@ Track B: #1 → #3 → #5
 ```
 
 Commit:
+
 ```bash
 git add docs/plans/roadmap.md
 git commit -m "docs: add project roadmap with GitHub issues"
@@ -125,6 +127,7 @@ git commit -m "docs: add project roadmap with GitHub issues"
 ## Re-running
 
 When the PRD is updated, run `/plan-project` again. It will:
+
 1. Read existing GitHub issues
 2. Diff against updated PRD
 3. Suggest: new issues to create, existing issues to update, obsolete issues to close
