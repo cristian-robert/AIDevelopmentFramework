@@ -54,6 +54,44 @@ For non-trivial tasks, choose your discipline level:
 - **mobile-tester-agent** — Mobile app testing via mobile-mcp (VERIFY/FLOW)
 - **ui-ux-analyzer** — Design audit agent with screenshots and reports
 
+## Knowledge Base
+
+Optional Obsidian-compatible project knowledge base. Stores feature specs, architecture decisions, and project overview as markdown notes that the agent reads/writes during the pipeline.
+
+**Configuration:** Add `## Knowledge Base` with `Path: <path>` to your project's CLAUDE.md. Default: `.obsidian/`. Remove the section to disable.
+
+**Structure:**
+```
+<path>/
+├── overview.md          # Project vision, goals, tech stack
+├── architecture/        # System design, data model
+├── features/            # One note per feature area, linked to GitHub issues
+├── decisions/           # Architecture Decision Records (ADRs)
+├── config/              # Integration metadata, env var names (never actual secrets)
+└── research/            # Brainstorming notes, tech comparisons
+```
+
+**When commands read it:**
+- `/prime` — loads overview + related feature notes (smart/targeted)
+- `/execute` — reads feature context before implementing
+
+**When commands write it:**
+- `/start` (L0) — creates structure + feature notes during brainstorming
+- `/create-prd` — seeds overview + architecture from PRD
+- `/plan-project` — creates feature notes alongside GitHub issues
+- `/ship` — updates feature notes with implementation details
+
+## Code Review Layers
+
+The framework supports two complementary review layers:
+
+| Layer | Command | What it checks | Required |
+|-------|---------|---------------|----------|
+| **Superpowers Code Review** | `/validate` Phase 3 | Implementation defects, plan adherence, security, edge cases | Always available |
+| **Codex Adversarial Review** | `/ship` Step 1.6 | Design choices, tradeoffs, assumptions, alternative approaches | Optional (requires OpenAI subscription + Codex plugin) |
+
+These are additive — the adversarial review questions whether the *approach* is right, while the code review checks whether the *implementation* is correct.
+
 ## Rules & References
 
 - Domain-specific rules auto-load from `.claude/rules/` based on file paths being edited

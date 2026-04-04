@@ -27,6 +27,20 @@ Executes an implementation plan task by task with TDD discipline.
 
 Read every file listed in the plan's "Mandatory Reading" section. This ensures you have the codebase context needed for implementation.
 
+#### Knowledge Base Context (if configured)
+
+Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value. If configured:
+
+1. Detect the issue number from the plan file or current branch
+2. Grep `<kb-path>/features/*.md` for the issue number — read the matching feature note
+3. Scan other feature notes (first 5 lines each) for related features — read any with clear overlap
+4. Check `<kb-path>/decisions/` for decisions referencing the same feature area
+5. Read `<kb-path>/overview.md` for project context
+
+This supplements the plan's mandatory reading with project-level context the plan author may not have included.
+
+If no knowledge base configured, skip this step.
+
 ### Step 3: Execute Tasks
 
 For each task in the plan:

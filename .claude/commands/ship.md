@@ -10,6 +10,51 @@ Handles the full shipping workflow: staging, committing, pushing, and creating a
 2. Verify no uncommitted changes that shouldn't be included
 3. Check current branch is not main/master
 
+### Step 1.5: Update Knowledge Base (if configured)
+
+Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value. If configured:
+
+1. **Find the feature note:** Detect the current issue number from the branch name. Grep `<kb-path>/features/*.md` for that issue number. If no match, use keyword matching between branch name and feature note filenames.
+
+2. **Update the feature note:**
+   - `## Implementation Notes` — append what was built: key files created/modified, endpoints added, components built, patterns used
+   - `## GitHub Issues` — update the status of the current issue to reflect completion
+   - `## Key Decisions` — add any decisions made during implementation that weren't pre-planned
+
+3. **Create decision records** (only if warranted):
+   - A technology or approach was chosen over alternatives during implementation
+   - A pattern was established that future features should follow
+   - Something was intentionally excluded and the reason matters for future work
+
+4. **Update overview** (only if significant):
+   - New integration or service was added to the stack
+   - Project scope changed
+
+5. Stage knowledge base changes alongside code changes.
+
+If no knowledge base configured, skip to Step 2.
+
+### Step 1.6: Codex Adversarial Review (optional)
+
+This step requires an OpenAI subscription and the Codex plugin installed. If not available, skip to Step 2.
+
+Check if the Codex companion script exists:
+```bash
+test -f "$HOME/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs" && echo "codex available" || echo "codex not available"
+```
+
+If Codex is available:
+
+1. Ask the user: "Run Codex adversarial review before committing? (requires OpenAI subscription)"
+   - If yes: run `/codex:adversarial-review` against the working tree changes
+   - If no: skip to Step 2
+2. Present the review output to the user
+3. If the review surfaces significant concerns, ask: "Address these findings before committing, or proceed?"
+   - If address: stop `/ship`, let the user fix issues, then re-run `/ship`
+   - If proceed: continue to Step 2
+
+This does NOT replace the superpowers code review in `/validate`. It is an additional, adversarial perspective that questions design choices, tradeoffs, and assumptions — not just implementation defects.
+
 ### Step 2: Stage and Commit
 
 Use the `/commit` skill (from commit-commands plugin) for proper conventional commit formatting.
