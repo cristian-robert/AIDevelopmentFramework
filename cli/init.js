@@ -434,7 +434,7 @@ async function main() {
   console.log('  .claude/agents/      4 specialist agents + template');
   console.log('  .claude/skills/      2 framework skills');
   console.log('  .claude/rules/       6 domain rules + template');
-  console.log('  .claude/references/  5 templates');
+  console.log('  .claude/references/  6 templates');
   console.log('  .claude/hooks/       5 guardrails');
   console.log('  docs/                methodology + guides');
   console.log('');

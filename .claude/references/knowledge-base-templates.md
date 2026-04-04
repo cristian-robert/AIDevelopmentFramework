@@ -2,6 +2,8 @@
 
 Used by pipeline commands when creating knowledge base notes. The knowledge base path is configured in the project's CLAUDE.md under `## Knowledge Base`.
 
+**Security:** Knowledge base notes are committed to git. NEVER store actual secret values (API keys, tokens, passwords) in any note. Store only metadata: which env vars are needed, which services are used, who owns credentials. Actual secrets belong in `.env` files, secret managers, or CI/CD variables.
+
 ---
 
 ## Feature Note Template

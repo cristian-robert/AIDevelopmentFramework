@@ -67,7 +67,7 @@ Optional Obsidian-compatible project knowledge base. Stores feature specs, archi
 ├── architecture/        # System design, data model
 ├── features/            # One note per feature area, linked to GitHub issues
 ├── decisions/           # Architecture Decision Records (ADRs)
-├── config/              # Integrations, env vars, third-party services
+├── config/              # Integration metadata, env var names (never actual secrets)
 └── research/            # Brainstorming notes, tech comparisons
 ```
 
@@ -80,6 +80,17 @@ Optional Obsidian-compatible project knowledge base. Stores feature specs, archi
 - `/create-prd` — seeds overview + architecture from PRD
 - `/plan-project` — creates feature notes alongside GitHub issues
 - `/ship` — updates feature notes with implementation details
+
+## Code Review Layers
+
+The framework supports two complementary review layers:
+
+| Layer | Command | What it checks | Required |
+|-------|---------|---------------|----------|
+| **Superpowers Code Review** | `/validate` Phase 3 | Implementation defects, plan adherence, security, edge cases | Always available |
+| **Codex Adversarial Review** | `/ship` Step 1.6 | Design choices, tradeoffs, assumptions, alternative approaches | Optional (requires OpenAI subscription + Codex plugin) |
+
+These are additive — the adversarial review questions whether the *approach* is right, while the code review checks whether the *implementation* is correct.
 
 ## Rules & References
 

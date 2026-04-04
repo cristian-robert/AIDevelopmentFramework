@@ -37,7 +37,7 @@ Default path: `.obsidian/` (configurable via `Knowledge Base: <path>` in project
 ├── decisions/
 │   └── NNN-title.md             # ADR format: context, decision, consequences
 ├── config/
-│   └── integrations.md          # Third-party services, API keys needed, env vars
+│   └── integrations.md          # Third-party services, env var names (never store actual secrets)
 └── research/
     └── ...                      # Brainstorming notes, tech comparisons
 ```

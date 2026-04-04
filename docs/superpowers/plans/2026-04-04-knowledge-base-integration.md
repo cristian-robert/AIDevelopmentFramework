@@ -441,7 +441,7 @@ Optional Obsidian-compatible project knowledge base. Stores feature specs, archi
 ├── architecture/        # System design, data model
 ├── features/            # One note per feature area, linked to GitHub issues
 ├── decisions/           # Architecture Decision Records (ADRs)
-├── config/              # Integrations, env vars, third-party services
+├── config/              # Integration metadata, env var names (never actual secrets)
 └── research/            # Brainstorming notes, tech comparisons
 ```
 

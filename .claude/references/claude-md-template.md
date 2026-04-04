@@ -83,12 +83,6 @@ project/
 - **mobile-tester-agent** — Mobile testing after changes (VERIFY/FLOW)
 - **ui-ux-analyzer** — Design audits on request
 
-## Knowledge Base
-
-Path: .obsidian/
-
-[Auto-configured during /init-claude-md setup. Set to the folder path for project knowledge notes. Remove this section to disable knowledge base features.]
-
 ## Rules & References
 
 - Domain rules auto-load from `.claude/rules/` based on file paths

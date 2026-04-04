@@ -50,6 +50,20 @@ Use any folder name:
 Path: knowledge/
 ```
 
+**Note:** The framework's `.gitignore` only covers Obsidian config files under `.obsidian/`. If you use a custom path and open it as an Obsidian vault, add these entries to your `.gitignore` (replacing `knowledge/` with your path):
+
+```
+knowledge/app.json
+knowledge/appearance.json
+knowledge/core-plugins.json
+knowledge/core-plugins-migration.json
+knowledge/workspace.json
+knowledge/workspace-mobile.json
+knowledge/hotkeys.json
+knowledge/plugins/
+knowledge/themes/
+```
+
 ### Disable
 
 Remove the `## Knowledge Base` section from CLAUDE.md. All knowledge operations are skipped — commands work exactly as before.
