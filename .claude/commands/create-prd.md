@@ -31,6 +31,25 @@ Invoke the brainstorming skill to explore the idea before writing anything:
 4. User stories should be concrete and testable
 5. Implementation phases should be ordered by dependency and value
 
+### Phase 2.5: Seed Knowledge Base (if configured)
+
+Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value. If configured:
+
+1. Read `.claude/references/knowledge-base-templates.md` for templates
+2. Create `<kb-path>/overview.md` from the PRD:
+   - Vision from Executive Summary
+   - Goals from Goals & Success Criteria
+   - Target Users from Target Users section
+   - Tech Stack from Technical Architecture
+   - Feature Areas listing each epic/feature
+3. Create `<kb-path>/architecture/system-design.md` from the PRD's Technical Architecture and System Diagram sections
+4. For each epic or major feature in the PRD, create `<kb-path>/features/<feature-name>.md` using the feature note template:
+   - Summary from the epic description
+   - GitHub Issues section left empty (populated by `/plan-project`)
+   - Key Decisions from any decisions made during brainstorming
+
+If no knowledge base configured, skip this phase.
+
 ### Phase 3: Review and Save
 
 1. Present the PRD to the user section by section
@@ -48,8 +67,10 @@ After saving, tell the user:
 > - Run `/plan-project` to decompose this into GitHub milestones and issues
 > - Or run `/plan-feature` to start planning a specific feature from the PRD
 
-Commit the PRD:
+Commit the PRD and knowledge base files (if created):
 ```bash
 git add docs/plans/PRD.md
-git commit -m "docs: add product requirements document"
+# If knowledge base was seeded:
+git add <kb-path>/overview.md <kb-path>/architecture/ <kb-path>/features/
+git commit -m "docs: add PRD and seed project knowledge base"
 ```

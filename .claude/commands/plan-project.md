@@ -74,6 +74,24 @@ gh issue create --title "[type]: description" --body "..." --label "feat,priorit
 
 For issues with dependencies, add a "Blocked by #N" line in the issue body.
 
+#### Knowledge Base Integration (if configured)
+
+Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value. If configured, after creating each GitHub issue:
+
+1. Check if a feature note already exists in `<kb-path>/features/` for this feature area
+2. If yes: update the `## GitHub Issues` section with the new issue number and title
+3. If no: create a new feature note using `.claude/references/knowledge-base-templates.md` template, with:
+   - Summary from the issue description
+   - GitHub Issues section listing the new issue
+4. If architectural decisions were made during the planning process, create `<kb-path>/decisions/NNN-title.md` for each significant decision
+
+Stage knowledge base files for commit:
+```bash
+git add <kb-path>/features/ <kb-path>/decisions/
+```
+
+If no knowledge base configured, skip this step.
+
 ### Phase 6: Generate Roadmap
 
 Save a roadmap file to `docs/plans/roadmap.md`:

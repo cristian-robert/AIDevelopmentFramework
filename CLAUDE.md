@@ -54,6 +54,33 @@ For non-trivial tasks, choose your discipline level:
 - **mobile-tester-agent** — Mobile app testing via mobile-mcp (VERIFY/FLOW)
 - **ui-ux-analyzer** — Design audit agent with screenshots and reports
 
+## Knowledge Base
+
+Optional Obsidian-compatible project knowledge base. Stores feature specs, architecture decisions, and project overview as markdown notes that the agent reads/writes during the pipeline.
+
+**Configuration:** Add `## Knowledge Base` with `Path: <path>` to your project's CLAUDE.md. Default: `.obsidian/`. Remove the section to disable.
+
+**Structure:**
+```
+<path>/
+├── overview.md          # Project vision, goals, tech stack
+├── architecture/        # System design, data model
+├── features/            # One note per feature area, linked to GitHub issues
+├── decisions/           # Architecture Decision Records (ADRs)
+├── config/              # Integrations, env vars, third-party services
+└── research/            # Brainstorming notes, tech comparisons
+```
+
+**When commands read it:**
+- `/prime` — loads overview + related feature notes (smart/targeted)
+- `/execute` — reads feature context before implementing
+
+**When commands write it:**
+- `/start` (L0) — creates structure + feature notes during brainstorming
+- `/create-prd` — seeds overview + architecture from PRD
+- `/plan-project` — creates feature notes alongside GitHub issues
+- `/ship` — updates feature notes with implementation details
+
 ## Rules & References
 
 - Domain-specific rules auto-load from `.claude/rules/` based on file paths being edited

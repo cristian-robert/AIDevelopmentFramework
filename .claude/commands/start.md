@@ -10,6 +10,7 @@ Run these in parallel:
 3. Check current git branch and status
 4. Check for existing GitHub issues: `gh issue list --limit 5 2>/dev/null`
 5. Check for existing plan files: `find docs/plans docs/superpowers/plans -name "*.md" 2>/dev/null`
+6. Check if knowledge base is configured: look for `## Knowledge Base` section with `Path:` in CLAUDE.md. If found, check if the directory exists and has `overview.md`
 
 ## Step 2: Detect Scope Level
 
@@ -21,7 +22,15 @@ Based on context, determine the entry point:
 
 **L0 (New Project)** — No PRD, no issues, minimal/no code
 → "Looks like a fresh project. Let's plan it from scratch."
-→ Route to: `/create-prd` then `/plan-project`
+→ Route to:
+  1. Brainstorm functionalities (interactive discussion)
+  2. If knowledge base configured in CLAUDE.md:
+     a. Create knowledge base folder structure (`overview.md`, `features/`, `decisions/`, `config/`, `research/`, `architecture/`)
+     b. Create `overview.md` from brainstorming results using `.claude/references/knowledge-base-templates.md`
+     c. Create feature notes in `features/` for each agreed functionality
+  3. `/create-prd` (generates PRD from brainstorming, seeds knowledge base if configured)
+  4. `/plan-project` (creates GitHub issues, links them to feature notes)
+  5. STOP — present the issue list and ask: "Which issue do you want to work on first?"
 
 **L1 (New Feature)** — Project exists, user has a feature idea (no specific issue)
 → "Let's plan this feature."

@@ -42,6 +42,17 @@ git branch --show-current
 - Read `.claude/agents/tester-agent/test-patterns.md` (page inventory)
 - Check `package.json` or equivalent for available scripts/commands
 
+### 6. Knowledge Base Context
+
+Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value (e.g., `.obsidian/`). If configured and the directory exists:
+
+1. **Always read:** `<kb-path>/overview.md`
+2. **Find linked feature note:** If working on a specific issue (detected from branch name or user input), grep `<kb-path>/features/*.md` for the issue number. Read the matching feature note.
+3. **Scan for related features:** List all files in `<kb-path>/features/`. Read the first 5 lines (`## Summary`) of each. If any feature has a clear dependency or overlap with the current issue (shared entities, referenced in acceptance criteria, same domain area), read the full note.
+4. **Check decisions:** List `<kb-path>/decisions/`. Read any whose title references the same feature area.
+
+If no knowledge base configured, skip this section entirely.
+
 ## Output Format
 
 Present a structured summary:
@@ -66,6 +77,9 @@ Available Commands:
 [dev, test, build commands from package.json]
 
 Knowledge Base: [N domains documented in architect-agent]
+
+Project Knowledge: [summary from overview.md if knowledge base exists, or "not configured"]
+Related Features: [list of feature notes loaded for this session]
 
 === Ready. Run /start to begin or specify a command. ===
 ```
