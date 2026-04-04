@@ -430,12 +430,13 @@ async function main() {
     console.log('  Backed up: ' + stats.backedUp + ' files (saved as .backup)');
   }
   console.log('');
-  console.log('  .claude/commands/    10 pipeline commands');
+  console.log('  .claude/commands/    14 pipeline commands (incl. 4 /kb commands)');
   console.log('  .claude/agents/      4 specialist agents + template');
   console.log('  .claude/skills/      2 framework skills');
-  console.log('  .claude/rules/       6 domain rules + template');
-  console.log('  .claude/references/  6 templates');
+  console.log('  .claude/rules/       7 domain rules + template');
+  console.log('  .claude/references/  7 templates');
   console.log('  .claude/hooks/       5 guardrails');
+  console.log('  cli/kb-search.js     knowledge base search tool');
   console.log('  docs/                methodology + guides');
   console.log('');
   console.log('Next steps:');
