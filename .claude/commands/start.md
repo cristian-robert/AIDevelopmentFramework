@@ -25,9 +25,15 @@ Based on context, determine the entry point:
 → Route to:
   1. Brainstorm functionalities (interactive discussion)
   2. If knowledge base configured in CLAUDE.md:
-     a. Create knowledge base folder structure (`overview.md`, `features/`, `decisions/`, `config/`, `research/`, `architecture/`)
-     b. Create `overview.md` from brainstorming results using `.claude/references/knowledge-base-templates.md`
-     c. Create feature notes in `features/` for each agreed functionality
+     a. Create the unified KB structure:
+        - `<kb-path>/raw/_manifest.md` (empty manifest table)
+        - `<kb-path>/raw/articles/`, `raw/papers/`, `raw/docs/`, `raw/repos/`, `raw/sessions/`
+        - `<kb-path>/wiki/_index.md` (empty index)
+        - `<kb-path>/wiki/_tags.md` (empty tag registry)
+        - `<kb-path>/_search/` (search infrastructure directory)
+     b. Create `wiki/project-overview.md` from brainstorming results using `.claude/references/kb-article-template.md` (type: `reference`)
+     c. Create wiki articles in `wiki/` for each agreed functionality (type: `feature`)
+     d. Ask: "Do you have research sources to ingest? Run `/kb ingest <source>` for each."
   3. `/create-prd` (generates PRD from brainstorming, seeds knowledge base if configured)
   4. `/plan-project` (creates GitHub issues, links them to feature notes)
   5. STOP — present the issue list and ask: "Which issue do you want to work on first?"

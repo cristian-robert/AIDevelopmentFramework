@@ -29,14 +29,23 @@ Invoke the revise-claude-md skill (from claude-md-management plugin) to:
 
 If the plugin isn't available, manually check CLAUDE.md for needed updates.
 
-### Step 3: Update Architect Knowledge Base
+### Step 3: Update Knowledge Bases
 
-If structural changes were made:
+**Architect Knowledge Base** — If structural changes were made:
 1. Dispatch architect-agent with RECORD query
 2. Agent verifies changes exist in codebase
 3. Agent updates relevant domain files in modules/ and frontend/
 4. Agent updates index.md if new domains were added
-5. If an architectural decision was made, add to decisions/log.md
+
+**Wiki Knowledge Base** — If configured in CLAUDE.md (`## Knowledge Base` section):
+1. Review the session for learnings: decisions made, patterns discovered, bugs solved, trade-offs evaluated, conventions adopted
+2. For each significant learning, create a raw session file:
+   - Save to `<kb-path>/raw/sessions/YYYY-MM-DD-<topic>.md`
+   - Add entry to `<kb-path>/raw/_manifest.md` with status `pending`
+3. Create stub wiki articles for each learning (type: `session-learning`)
+4. Update `wiki/_index.md` and `wiki/_tags.md`
+5. Run: `KB_PATH=<kb-path> node cli/kb-search.js index`
+6. If stubs have accumulated, suggest: "Run `/kb compile` to expand session learnings into full articles with cross-links."
 
 ### Step 4: Update Rules
 

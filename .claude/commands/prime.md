@@ -46,10 +46,10 @@ git branch --show-current
 
 Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value (e.g., `.obsidian/`). If configured and the directory exists:
 
-1. **Always read:** `<kb-path>/overview.md`
-2. **Find linked feature note:** If working on a specific issue (detected from branch name or user input), grep `<kb-path>/features/*.md` for the issue number. Read the matching feature note.
-3. **Scan for related features:** List all files in `<kb-path>/features/`. Read the first 5 lines (`## Summary`) of each. If any feature has a clear dependency or overlap with the current issue (shared entities, referenced in acceptance criteria, same domain area), read the full note.
-4. **Check decisions:** List `<kb-path>/decisions/`. Read any whose title references the same feature area.
+1. **Read the wiki index:** `<kb-path>/wiki/_index.md` — this gives an overview of all knowledge available
+2. **Search for task-relevant knowledge:** Run `KB_PATH=<kb-path> node cli/kb-search.js search "<task keywords>"` where task keywords come from the current issue title, branch name, or user description
+3. **Load top results:** Read the top 3-5 matching wiki articles in full using the Read tool
+4. **Check for feature articles:** If working on a specific issue, also search: `KB_PATH=<kb-path> node cli/kb-search.js search "#<issue-number>" --type=feature`
 
 If no knowledge base configured, skip this section entirely.
 
@@ -76,10 +76,9 @@ Uncommitted Changes:
 Available Commands:
 [dev, test, build commands from package.json]
 
-Knowledge Base: [N domains documented in architect-agent]
+Knowledge Base: [N articles in wiki, N stubs pending | "not configured"]
 
-Project Knowledge: [summary from overview.md if knowledge base exists, or "not configured"]
-Related Features: [list of feature notes loaded for this session]
+KB Context Loaded: [list of wiki articles loaded for this session, with types]
 
 === Ready. Run /start to begin or specify a command. ===
 ```
