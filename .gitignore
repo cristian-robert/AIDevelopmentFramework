@@ -23,3 +23,6 @@ build/
 .obsidian/hotkeys.json
 .obsidian/plugins/
 .obsidian/themes/
+
+# Worktrees
+.worktrees/
