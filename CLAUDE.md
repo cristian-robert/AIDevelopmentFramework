@@ -56,30 +56,39 @@ For non-trivial tasks, choose your discipline level:
 
 ## Knowledge Base
 
-Optional Obsidian-compatible project knowledge base. Stores feature specs, architecture decisions, and project overview as markdown notes that the agent reads/writes during the pipeline.
+Unified LLM knowledge base inspired by [Karpathy's LLM Knowledge Bases](https://x.com/karpathy) workflow. External research and project knowledge live together as a flat wiki. The LLM ingests raw sources, compiles them into wiki articles, auto-searches during task work, and grows the wiki from every coding session.
 
 **Configuration:** Add `## Knowledge Base` with `Path: <path>` to your project's CLAUDE.md. Default: `.obsidian/`. Remove the section to disable.
 
 **Structure:**
 ```
 <path>/
-├── overview.md          # Project vision, goals, tech stack
-├── architecture/        # System design, data model
-├── features/            # One note per feature area, linked to GitHub issues
-├── decisions/           # Architecture Decision Records (ADRs)
-├── config/              # Integration metadata, env var names (never actual secrets)
-└── research/            # Brainstorming notes, tech comparisons
+├── raw/                 # Ingested source material (articles, papers, docs, repos, session learnings)
+│   └── _manifest.md     # Index of all raw sources with status
+├── wiki/                # Unified wiki — ALL knowledge as flat .md files with frontmatter
+│   ├── _index.md        # Master index grouped by type
+│   └── _tags.md         # Tag registry with article counts
+└── _search/
+    ├── index.json       # TF-IDF search index (auto-generated)
+    └── stats.md         # KB health metrics
 ```
 
-**When commands read it:**
-- `/prime` — loads overview + related feature notes (smart/targeted)
-- `/execute` — reads feature context before implementing
+**KB Commands:**
+- `/kb ingest <source>` — ingest URL, file, repo, or session learnings into raw/ + create wiki stub
+- `/kb compile` — deep compilation: expand stubs, cross-link, extract concepts, health check
+- `/kb search <query>` — TF-IDF search across wiki (used by LLM and user)
+- `/kb ask <question>` — Q&A against wiki, answer filed back as new article
 
-**When commands write it:**
-- `/start` (L0) — creates structure + feature notes during brainstorming
-- `/create-prd` — seeds overview + architecture from PRD
-- `/plan-project` — creates feature notes alongside GitHub issues
-- `/ship` — updates feature notes with implementation details
+**When pipeline commands read it:**
+- `/prime` — reads wiki index + auto-searches for task-relevant articles
+- `/execute` — searches wiki before each task for relevant context
+
+**When pipeline commands write it:**
+- `/start` (L0) — creates KB structure + initial wiki articles
+- `/create-prd` — seeds wiki with project overview, architecture, feature articles
+- `/plan-project` — creates/updates feature articles alongside GitHub issues
+- `/ship` — updates feature articles with implementation details, creates decision articles
+- `/evolve` — captures session learnings as raw + stub wiki articles
 
 ## Code Review Layers
 

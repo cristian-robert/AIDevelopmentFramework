@@ -24,5 +24,8 @@ build/
 .obsidian/plugins/
 .obsidian/themes/
 
+# KB search index (auto-generated, rebuild with: node cli/kb-search.js index)
+.obsidian/_search/index.json
+
 # Worktrees
 .worktrees/

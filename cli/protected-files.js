@@ -21,6 +21,11 @@ var PROTECTED_FILES = [
 
   // Project-specific settings and permissions
   '.claude/settings.local.json',
+
+  // Knowledge base wiki index files (LLM-maintained)
+  '.obsidian/wiki/_index.md',
+  '.obsidian/wiki/_tags.md',
+  '.obsidian/raw/_manifest.md',
 ];
 
 // Directories with project-specific content (architect-agent module knowledge).
@@ -28,6 +33,8 @@ var PROTECTED_FILES = [
 var PROTECTED_DIRS = [
   '.claude/agents/architect-agent/modules',
   '.claude/agents/architect-agent/frontend',
+  '.obsidian/wiki',
+  '.obsidian/raw',
 ];
 
 // Files that users commonly customize (rules, hooks).
