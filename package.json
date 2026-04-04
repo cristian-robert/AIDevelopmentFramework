@@ -1,6 +1,6 @@
 {
   "name": "ai-development-framework",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "The system around the AI that makes the AI reliable. Structured AI-assisted development with the PIV+E loop.",
   "bin": {
     "ai-framework": "cli/index.js"
