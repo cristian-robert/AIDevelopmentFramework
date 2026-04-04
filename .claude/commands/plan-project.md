@@ -78,16 +78,19 @@ For issues with dependencies, add a "Blocked by #N" line in the issue body.
 
 Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value. If configured, after creating each GitHub issue:
 
-1. Check if a feature note already exists in `<kb-path>/features/` for this feature area
-2. If yes: update the `## GitHub Issues` section with the new issue number and title
-3. If no: create a new feature note using `.claude/references/knowledge-base-templates.md` template, with:
+1. Search for an existing feature article: `KB_PATH=<kb-path> node cli/kb-search.js search "<feature name>" --type=feature`
+2. If found: update the article's `## GitHub Issues` section with the new issue number and title
+3. If not found: create a new feature article in `wiki/<feature-name>.md` using `.claude/references/kb-article-template.md` feature template, with:
    - Summary from the issue description
    - GitHub Issues section listing the new issue
-4. If architectural decisions were made during the planning process, create `<kb-path>/decisions/NNN-title.md` for each significant decision
+   - Tags relevant to the feature domain
+4. If architectural decisions were made, create decision articles in `wiki/adr-NNN-<title>.md` using the decision template
+5. Update `wiki/_index.md`, `wiki/_tags.md`
+6. Run: `KB_PATH=<kb-path> node cli/kb-search.js index`
 
 Stage knowledge base files for commit:
 ```bash
-git add <kb-path>/features/ <kb-path>/decisions/
+git add <kb-path>/wiki/
 ```
 
 If no knowledge base configured, skip this step.

@@ -35,18 +35,23 @@ Invoke the brainstorming skill to explore the idea before writing anything:
 
 Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value. If configured:
 
-1. Read `.claude/references/knowledge-base-templates.md` for templates
-2. Create `<kb-path>/overview.md` from the PRD:
+1. Read `.claude/references/kb-article-template.md` for templates
+2. Create the KB structure if it doesn't exist (same as `/start` L0 step)
+3. Create `<kb-path>/wiki/project-overview.md` (type: `reference`):
    - Vision from Executive Summary
    - Goals from Goals & Success Criteria
    - Target Users from Target Users section
    - Tech Stack from Technical Architecture
-   - Feature Areas listing each epic/feature
-3. Create `<kb-path>/architecture/system-design.md` from the PRD's Technical Architecture and System Diagram sections
-4. For each epic or major feature in the PRD, create `<kb-path>/features/<feature-name>.md` using the feature note template:
+   - Feature Areas listing each epic/feature with wikilinks
+4. Create `<kb-path>/wiki/system-design.md` (type: `concept`):
+   - Architecture from Technical Architecture and System Diagram sections
+5. For each epic or major feature in the PRD, create `<kb-path>/wiki/<feature-name>.md` (type: `feature`):
    - Summary from the epic description
    - GitHub Issues section left empty (populated by `/plan-project`)
-   - Key Decisions from any decisions made during brainstorming
+   - Key Decisions from brainstorming
+   - Related articles linking to project-overview and system-design
+6. Update `wiki/_index.md` and `wiki/_tags.md`
+7. Run: `KB_PATH=<kb-path> node cli/kb-search.js index`
 
 If no knowledge base configured, skip this phase.
 
@@ -71,6 +76,6 @@ Commit the PRD and knowledge base files (if created):
 ```bash
 git add docs/plans/PRD.md
 # If knowledge base was seeded:
-git add <kb-path>/overview.md <kb-path>/architecture/ <kb-path>/features/
+git add <kb-path>/wiki/ <kb-path>/raw/_manifest.md
 git commit -m "docs: add PRD and seed project knowledge base"
 ```
