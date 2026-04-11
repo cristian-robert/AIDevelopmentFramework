@@ -42,8 +42,8 @@ After creating missing directories, also create `raw/_manifest.md` if it does no
 ```markdown
 # Raw Ingestion Manifest
 
-| Date | Slug | Type | Source | Wiki Article |
-|------|------|------|--------|--------------|
+| Source | Date | Type | Raw File | Status | Wiki Article |
+|--------|------|------|----------|--------|--------------|
 ```
 
 And create `wiki/_index.md` if it does not exist:
@@ -122,14 +122,21 @@ title: <extracted or inferred title>
 Append one row to `<kb-path>/raw/_manifest.md`:
 
 ```
-| <YYYY-MM-DD> | <slug> | <category> | <source> | wiki/<slug>.md |
+| <source> | <YYYY-MM-DD> | <category> | raw/<category>/<date>-<slug>.md | pending | — |
 ```
 
 The table header (already present) is:
 
 ```
-| Date | Slug | Type | Source | Wiki Article |
+| Source | Date | Type | Raw File | Status | Wiki Article |
 ```
+
+- **Source**: original URL or file path
+- **Date**: ingestion date
+- **Type**: article, paper, doc, repo, session
+- **Raw File**: path to the raw file
+- **Status**: starts as `pending`; updated to `compiled` by `/kb compile`
+- **Wiki Article**: filename of the wiki article; filled by `/kb compile`, `—` until then
 
 ---
 
@@ -170,7 +177,9 @@ created: <YYYY-MM-DD>
 - **summary:** Write one concise paragraph (3–5 sentences) summarising what the source covers and its relevance.
 - **key takeaways:** List 3–7 concrete, actionable insights from the source.
 
-Write the stub to `<kb-path>/wiki/<slug>.md`.
+6. Check if `wiki/<slug>.md` already exists. If so, append a numeric suffix: `wiki/<slug>-2.md`, `wiki/<slug>-3.md`, etc. Use the first available number.
+
+Write the stub to `<kb-path>/wiki/<slug>.md` (or `<slug>-N.md` if a collision was resolved).
 
 ---
 

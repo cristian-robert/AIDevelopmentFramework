@@ -189,22 +189,29 @@ status: accepted | superseded | deprecated
 Each ingested source gets one row in `raw/_manifest.md`. The manifest tracks what has been ingested and whether it has been compiled into a wiki article.
 
 ```markdown
-| Date | Source | Type | Tags | Article | Status |
-|------|--------|------|------|---------|--------|
-| YYYY-MM-DD | [source description or URL] | video / blog / doc / session / paper | tag1, tag2 | [[Article Title]] or — | ingested / compiled |
+| Source | Date | Type | Raw File | Status | Wiki Article |
+|--------|------|------|----------|--------|--------------|
+| https://example.com/article | 2026-04-05 | article | raw/articles/2026-04-05-example-article.md | pending | — |
 ```
+
+- **Source**: URL or file path of the original
+- **Date**: ingestion date (YYYY-MM-DD)
+- **Type**: article, paper, doc, repo, session
+- **Raw File**: path to the raw file within the KB
+- **Status**: `pending` (just ingested) → `compiled` (woven into a wiki article by `/kb compile`)
+- **Wiki Article**: filename of the wiki article (filled by `/kb compile`, `—` until then)
 
 Full manifest file structure:
 
 ```markdown
-# KB Manifest
+# Raw Ingestion Manifest
 
 Tracks all ingested sources and their compilation status.
 
-| Date | Source | Type | Tags | Article | Status |
-|------|--------|------|------|---------|--------|
-| 2025-01-15 | Karpathy: "Let's build GPT" (YouTube) | video | llm, training, transformers | [[Building GPT From Scratch]] | compiled |
-| 2025-01-16 | https://docs.anthropic.com/context-windows | doc | context, claude, limits | — | ingested |
+| Source | Date | Type | Raw File | Status | Wiki Article |
+|--------|------|------|----------|--------|--------------|
+| https://youtube.com/watch?v=kCc8FmEb1nY | 2025-01-15 | article | raw/articles/2025-01-15-lets-build-gpt.md | compiled | wiki/building-gpt-from-scratch.md |
+| https://docs.anthropic.com/context-windows | 2025-01-16 | doc | raw/docs/2025-01-16-context-windows.md | pending | — |
 ```
 
 ---

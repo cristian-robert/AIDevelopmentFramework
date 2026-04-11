@@ -33,7 +33,13 @@ If the section is missing or `Path:` is not set, default to `.obsidian/`. Store 
 
 Identify what needs compilation:
 
-**Pending/updated raw sources** — read `<KB_PATH>/raw/_manifest.md` and collect every entry with `status: pending` or `status: updated`. These are sources whose content hasn't been woven into any article yet.
+**Pending/updated raw sources** — read `<KB_PATH>/raw/_manifest.md` and collect every row where the `Status` column is `pending` or `updated`. The manifest columns are:
+
+```
+| Source | Date | Type | Raw File | Status | Wiki Article |
+```
+
+These are sources whose content hasn't been woven into any article yet.
 
 **Stub articles** — scan all `.md` files in `<KB_PATH>/wiki/` (excluding `_index.md` and `_tags.md`). Read each file's frontmatter and collect those with `status: stub`.
 
@@ -235,10 +241,10 @@ KB_PATH=<kb-path> node cli/kb-search.js index
 
 ### Step 8: Update Manifest
 
-For each source that was successfully woven into a compiled article, update its entry in `<KB_PATH>/raw/_manifest.md`:
+For each source that was successfully woven into a compiled article, update its row in `<KB_PATH>/raw/_manifest.md`:
 
-- Change `status: pending` or `status: updated` to `status: compiled`
-- Set `compiled: <today>`
+- Change the `Status` column from `pending` or `updated` to `compiled`
+- Set the `Wiki Article` column to the wiki article filename (e.g. `wiki/<slug>.md`)
 
 ### Step 9: Report
 

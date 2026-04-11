@@ -69,6 +69,8 @@ Create a slug from the question: lowercase, hyphens for spaces, strip punctuatio
 - "How do I set up the KB?" → `how-to-set-up-the-kb`
 - "What is the difference between guide and reference?" → `guide-vs-reference-article-types`
 
+Check if `wiki/<slug>.md` already exists. If so, append a numeric suffix: `wiki/<slug>-2.md`, `wiki/<slug>-3.md`, etc. Use the first available number.
+
 Extract 2–4 relevant tags from the answer content.
 
 Compose the frontmatter:
