@@ -132,12 +132,15 @@ function backupAndCopy(sourceDir, targetDir, projectRoot) {
         var destExists = fs.existsSync(destPath);
 
         if (destExists) {
-          // Back up the existing file
+          // Back up the existing file — only if no backup exists yet
+          // (preserves original user content on double-init/update)
           var backupPath = destPath + '.backup';
-          fs.copyFileSync(destPath, backupPath);
-          stats.backedUp++;
-          var relPath = toProjectRelative(destPath, projectRoot);
-          stats.backedUpFiles.push(relPath);
+          if (!fs.existsSync(backupPath)) {
+            fs.copyFileSync(destPath, backupPath);
+            stats.backedUp++;
+            var relPath = toProjectRelative(destPath, projectRoot);
+            stats.backedUpFiles.push(relPath);
+          }
         }
 
         // Copy new framework file
@@ -240,9 +243,12 @@ async function main() {
   if (fs.existsSync(claudeMdSource)) {
     var claudeMdDest = path.join(targetDir, 'CLAUDE.md');
     if (fs.existsSync(claudeMdDest)) {
-      fs.copyFileSync(claudeMdDest, claudeMdDest + '.backup');
-      stats.backedUp++;
-      stats.backedUpFiles.push('CLAUDE.md');
+      var claudeMdBackup = claudeMdDest + '.backup';
+      if (!fs.existsSync(claudeMdBackup)) {
+        fs.copyFileSync(claudeMdDest, claudeMdBackup);
+        stats.backedUp++;
+        stats.backedUpFiles.push('CLAUDE.md');
+      }
       fs.copyFileSync(claudeMdSource, claudeMdDest);
       stats.updated++;
     } else {
@@ -266,9 +272,12 @@ async function main() {
         var destPath = path.join(docsTarget, entry.name);
         var existed = fs.existsSync(destPath);
         if (existed) {
-          fs.copyFileSync(destPath, destPath + '.backup');
-          stats.backedUp++;
-          stats.backedUpFiles.push(toProjectRelative(destPath, targetDir));
+          var docBackupPath = destPath + '.backup';
+          if (!fs.existsSync(docBackupPath)) {
+            fs.copyFileSync(destPath, docBackupPath);
+            stats.backedUp++;
+            stats.backedUpFiles.push(toProjectRelative(destPath, targetDir));
+          }
         }
         fs.copyFileSync(srcPath, destPath);
         if (existed) {

@@ -32,6 +32,14 @@ function getVersion(dir) {
   }
 }
 
+function getLocalFallbackDir() {
+  var frameworkDir = path.join(__dirname, '..');
+  if (fs.existsSync(path.join(frameworkDir, '.claude'))) {
+    return frameworkDir;
+  }
+  return null;
+}
+
 function backupAndCopy(sourceDir, targetDir, projectRoot) {
   var stats = { created: 0, updated: 0, backedUp: 0, backedUpFiles: [] };
 
@@ -51,11 +59,14 @@ function backupAndCopy(sourceDir, targetDir, projectRoot) {
         var destExists = fs.existsSync(destPath);
 
         if (destExists) {
+          // Only create backup if one doesn't already exist (preserve original)
           var backupPath = destPath + '.backup';
-          fs.copyFileSync(destPath, backupPath);
-          stats.backedUp++;
-          var relPath = toProjectRelative(destPath, projectRoot);
-          stats.backedUpFiles.push(relPath);
+          if (!fs.existsSync(backupPath)) {
+            fs.copyFileSync(destPath, backupPath);
+            stats.backedUp++;
+            var relPath = toProjectRelative(destPath, projectRoot);
+            stats.backedUpFiles.push(relPath);
+          }
         }
 
         var destDir = path.dirname(destPath);
@@ -112,11 +123,29 @@ async function main() {
 
   console.log('Downloading latest framework from GitHub...');
 
+  var sourceDir = null;
+  var downloaded = false;
   try {
     execFileSync('curl', ['-sL', TARBALL_URL, '-o', path.join(tmpDir, 'framework.tar.gz')]);
     execFileSync('tar', ['-xzf', path.join(tmpDir, 'framework.tar.gz'), '-C', tmpDir, '--strip-components=1']);
+    sourceDir = tmpDir;
+    downloaded = true;
+  } catch (dlErr) {
+    console.error('Download failed: ' + dlErr.message);
+    var fallback = getLocalFallbackDir();
+    if (fallback) {
+      console.log('Using local package as fallback...');
+      sourceDir = fallback;
+    } else {
+      console.error('No framework source available. Check your internet connection.');
+      cleanupTmpDir(tmpDir);
+      rl.close();
+      process.exit(1);
+    }
+  }
 
-    var newVersion = getVersion(tmpDir);
+  try {
+    var newVersion = getVersion(sourceDir);
 
     console.log('');
     console.log('All existing files will be backed up as .backup before updating.');
@@ -126,13 +155,33 @@ async function main() {
     // Update .claude/ with backup
     console.log('Updating .claude/ ...');
     var stats = backupAndCopy(
-      path.join(tmpDir, '.claude'),
+      path.join(sourceDir, '.claude'),
       path.join(projectRoot, '.claude'),
       projectRoot
     );
 
+    // Update CLAUDE.md with backup
+    var claudeMdSource = path.join(sourceDir, 'CLAUDE.md');
+    if (fs.existsSync(claudeMdSource)) {
+      var claudeMdDest = path.join(projectRoot, 'CLAUDE.md');
+      if (fs.existsSync(claudeMdDest)) {
+        var backupPath = claudeMdDest + '.backup';
+        if (!fs.existsSync(backupPath)) {
+          fs.copyFileSync(claudeMdDest, backupPath);
+          stats.backedUp++;
+          stats.backedUpFiles.push('CLAUDE.md');
+        }
+        fs.copyFileSync(claudeMdSource, claudeMdDest);
+        stats.updated++;
+      } else {
+        // No existing CLAUDE.md — just copy
+        fs.copyFileSync(claudeMdSource, claudeMdDest);
+        stats.created++;
+      }
+    }
+
     // Update docs (but not docs/plans/ or docs/superpowers/)
-    var sourceDocsDir = path.join(tmpDir, 'docs');
+    var sourceDocsDir = path.join(sourceDir, 'docs');
     var targetDocsDir = path.join(projectRoot, 'docs');
     if (fs.existsSync(sourceDocsDir)) {
       console.log('Updating docs/...');
@@ -147,9 +196,12 @@ async function main() {
           var destPath = path.join(targetDocsDir, entry.name);
           var existed = fs.existsSync(destPath);
           if (existed) {
-            fs.copyFileSync(destPath, destPath + '.backup');
-            stats.backedUp++;
-            stats.backedUpFiles.push(toProjectRelative(destPath, projectRoot));
+            var docBackupPath = destPath + '.backup';
+            if (!fs.existsSync(docBackupPath)) {
+              fs.copyFileSync(destPath, docBackupPath);
+              stats.backedUp++;
+              stats.backedUpFiles.push(toProjectRelative(destPath, projectRoot));
+            }
           }
           fs.copyFileSync(srcPath, destPath);
           if (existed) {

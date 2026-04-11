@@ -29,7 +29,9 @@ var NEEDS_MERGE = [
   // Project-specific settings
   '.claude/settings.local.json',
 
-  // Knowledge base content
+  // Knowledge base content (default path — actual path configured per-project in CLAUDE.md)
+  // These are hints for the /start merge flow. The backup-everything strategy
+  // in init/update protects files regardless of whether they're in this list.
   '.obsidian/wiki/_index.md',
   '.obsidian/wiki/_tags.md',
   '.obsidian/raw/_manifest.md',
@@ -39,6 +41,7 @@ var NEEDS_MERGE = [
 var NEEDS_RESTORE = [
   '.claude/agents/architect-agent/modules',
   '.claude/agents/architect-agent/frontend',
+  // Knowledge base directories (default path — see note above)
   '.obsidian/wiki',
   '.obsidian/raw',
 ];

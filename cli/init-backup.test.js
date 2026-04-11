@@ -32,7 +32,7 @@ function cleanup() {
   fs.rmSync(TEST_DIR, { recursive: true, force: true });
 }
 
-// Inline backupAndCopy for testing (extracted from init.js logic)
+// Inline backupAndCopy for testing (extracted from init.js logic, with double-init guard)
 function backupAndCopy(sourceDir, targetDir) {
   var stats = { created: 0, updated: 0, backedUp: 0, backedUpFiles: [] };
 
@@ -51,9 +51,12 @@ function backupAndCopy(sourceDir, targetDir) {
       } else {
         var destExists = fs.existsSync(destPath);
         if (destExists) {
-          fs.copyFileSync(destPath, destPath + '.backup');
-          stats.backedUp++;
-          stats.backedUpFiles.push(path.relative(targetDir, destPath).split(path.sep).join('/'));
+          var backupPath = destPath + '.backup';
+          if (!fs.existsSync(backupPath)) {
+            fs.copyFileSync(destPath, backupPath);
+            stats.backedUp++;
+            stats.backedUpFiles.push(path.relative(targetDir, destPath).split(path.sep).join('/'));
+          }
         }
         fs.copyFileSync(srcPath, destPath);
         if (destExists) { stats.updated++; } else { stats.created++; }
@@ -111,6 +114,34 @@ function runTests() {
   fs.writeFileSync(path.join(SOURCE_DIR, '.claude', 'rules', 'new-rule.md'), '# New Rule\n');
   var stats2 = backupAndCopy(SOURCE_DIR, TARGET_DIR);
   assert('new file counted as created', stats2.created >= 1);
+
+  // Test: double-init guard — running backupAndCopy again should NOT overwrite .backup files
+  console.log('double-init guard:');
+
+  // Change the source to simulate a second init with different framework content
+  fs.writeFileSync(path.join(SOURCE_DIR, 'CLAUDE.md'), '# Framework CLAUDE.md v3\n\n## Tech Stack\n\n- Node.js\n- Python\n');
+  fs.writeFileSync(path.join(SOURCE_DIR, '.claude', 'rules', 'backend.md'), '# Backend Rules v3\n\n## Even newer section\n');
+
+  var stats3 = backupAndCopy(SOURCE_DIR, TARGET_DIR);
+
+  // .backup files should still contain the ORIGINAL project content (not framework v2)
+  var doubleInitBackup = fs.readFileSync(path.join(TARGET_DIR, 'CLAUDE.md.backup'), 'utf-8');
+  assert('CLAUDE.md.backup still has original content after double-init', doubleInitBackup.includes('My Project'));
+  assert('CLAUDE.md.backup was NOT overwritten with framework content', !doubleInitBackup.includes('Framework CLAUDE.md'));
+
+  var backendBackup = fs.readFileSync(path.join(TARGET_DIR, '.claude', 'rules', 'backend.md.backup'), 'utf-8');
+  assert('backend.md.backup still has original v1 content', backendBackup.includes('Backend Rules v1'));
+  assert('backend.md.backup was NOT overwritten with v2 content', !backendBackup.includes('Backend Rules v2'));
+
+  // The second run should NOT re-backup files that already had .backup from the first run.
+  // It may backup new-rule.md (created in "new files" test, no .backup yet), so count may be > 0.
+  // The critical check: original 4 files were NOT re-backed-up.
+  assert('second run did not re-backup original files', !stats3.backedUpFiles.includes('CLAUDE.md'));
+  assert('second run did not re-backup backend.md', !stats3.backedUpFiles.includes('.claude/rules/backend.md'));
+
+  // But the new framework files should still be installed
+  var currentContent = fs.readFileSync(path.join(TARGET_DIR, 'CLAUDE.md'), 'utf-8');
+  assert('CLAUDE.md has latest framework content (v3)', currentContent.includes('Framework CLAUDE.md v3'));
 
   cleanup();
 
