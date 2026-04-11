@@ -90,16 +90,54 @@ Unified LLM knowledge base inspired by [Karpathy's LLM Knowledge Bases](https://
 - `/ship` — updates feature articles with implementation details, creates decision articles
 - `/evolve` — captures session learnings as raw + stub wiki articles
 
+## Post-Init Merge
+
+When `.claude/.init-meta.json` exists, the framework was recently installed or updated. Files with `.backup` extensions contain the project's previous versions. The `/start` command will detect this and run the merge flow before normal routing.
+
+**Merge rules by file type:**
+
+| File | Strategy |
+|------|----------|
+| `CLAUDE.md` | Merge project-specific sections (Tech Stack, Knowledge Base, Design Skill Preference, QA Tools, custom sections) into new template. Preserve all user-added content. |
+| `.claude/rules/*.md` | Append user-added conventions, checklist items, and skill chain customizations to new framework rules. Don't duplicate entries already in the new version. |
+| `.claude/commands/*.md` | If user modified a command, present diff and ask. Otherwise skip (no merge needed). |
+| `.claude/references/code-patterns.md` | Always restore from backup — entirely project-specific. |
+| `.claude/references/*.md` (other) | Skip — framework templates, no project content. |
+| `.claude/agents/architect-agent/*` | Always restore from backup — project knowledge base. |
+| `.claude/agents/tester-agent/*` | Always restore from backup — project test patterns. |
+| `.claude/agents/mobile-tester-agent/*` | Always restore from backup — project screen patterns. |
+| `.obsidian/**` | Always restore from backup — project wiki and raw sources. |
+
+**Merge process:** For each `.backup` file, read both versions, present a summary of what will be merged, wait for user approval, then apply. Delete `.backup` files and `.init-meta.json` when complete.
+
 ## Code Review Layers
 
 The framework supports two complementary review layers:
 
 | Layer | Command | What it checks | Required |
 |-------|---------|---------------|----------|
-| **Superpowers Code Review** | `/validate` Phase 3 | Implementation defects, plan adherence, security, edge cases | Always available |
+| **Superpowers Code Review** | `/validate` Phase 5 | Implementation defects, plan adherence, security, edge cases | Always available |
 | **Codex Adversarial Review** | `/ship` Step 1.6 | Design choices, tradeoffs, assumptions, alternative approaches | Optional (requires OpenAI subscription + Codex plugin) |
 
 These are additive — the adversarial review questions whether the *approach* is right, while the code review checks whether the *implementation* is correct.
+
+## Verification Standard
+
+Both Standard and Superpowers modes MUST run `/validate` before `/ship`. The superpowers `verification-before-completion` skill is NOT a substitute for `/validate`. The superpowers `requesting-code-review` skill is NOT a substitute for `/validate` Phase 5.
+
+After implementation (via `/execute` or `superpowers:subagent-driven-development`), always run `/validate` to verify: automated checks, visual testing, QA tests, security scans, and code review.
+
+**Superpowers KB integration:** When using `superpowers:subagent-driven-development`, search the wiki (`KB_PATH=<kb-path> node cli/kb-search.js search "<keywords>"`) before dispatching each task implementer to provide relevant project context.
+
+## QA Tools
+
+Default QA test tools by domain. Override per-project by editing this section.
+
+| Domain | Tool |
+|--------|------|
+| Web E2E | Playwright |
+| API E2E | Supertest |
+| Mobile E2E | Detox |
 
 ## Rules & References
 
