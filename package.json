@@ -3,6 +3,7 @@
   "version": "0.3.0",
   "description": "The system around the AI that makes the AI reliable. Structured AI-assisted development with the PIV+E loop.",
   "bin": {
+    "ai-development-framework": "cli/index.js",
     "ai-framework": "cli/index.js"
   },
   "keywords": [

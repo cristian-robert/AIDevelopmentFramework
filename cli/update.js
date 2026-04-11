@@ -111,7 +111,7 @@ async function main() {
   console.log('');
 
   if (!fs.existsSync('.claude')) {
-    console.error('No .claude/ directory found. Run "npx ai-framework init" first.');
+    console.error('No .claude/ directory found. Run "npx ai-development-framework init" first.');
     process.exit(1);
   }
 
