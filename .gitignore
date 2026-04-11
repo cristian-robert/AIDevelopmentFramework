@@ -29,3 +29,9 @@ build/
 
 # Worktrees
 .worktrees/
+
+# Init/update metadata (temporary, consumed by /start merge)
+.claude/.init-meta.json
+
+# Backup files from init/update (temporary, consumed by /start merge)
+*.backup
