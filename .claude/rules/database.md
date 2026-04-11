@@ -7,9 +7,10 @@ globs: ["**/migrations/**", "**/*.sql", "**/schema*", "**/prisma/**", "**/drizzl
 
 ## Skill Chain
 
-1. **Supabase MCP** (if using Supabase): `list_tables` → `execute_sql` → `apply_migration` → `get_advisors`
-2. **`/supabase-postgres-best-practices`** — for schema design and query optimization
-3. **`/mongodb`** or **`/mongodb-development`** — if using MongoDB
+1. **KB search** (if KB configured) — search for relevant schema/database articles before starting
+2. **Supabase MCP** (if using Supabase): `list_tables` → `execute_sql` → `apply_migration` → `get_advisors`
+3. **`/supabase-postgres-best-practices`** — for schema design and query optimization
+4. **`/mongodb`** or **`/mongodb-development`** — if using MongoDB
 
 ## Conventions
 
@@ -37,3 +38,4 @@ After any schema change:
 - [ ] Verify RLS policies still work
 - [ ] Update TypeScript types (`generate_typescript_types` or equivalent)
 - [ ] Update architect-agent knowledge base
+- [ ] Update KB wiki articles for schema changes (if KB configured)

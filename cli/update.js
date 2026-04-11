@@ -213,6 +213,31 @@ async function main() {
       }
     }
 
+    // Update cli/kb-search.js (knowledge base search tool)
+    var kbSearchSource = path.join(sourceDir, 'cli', 'kb-search.js');
+    if (fs.existsSync(kbSearchSource)) {
+      var cliDir = path.join(projectRoot, 'cli');
+      if (!fs.existsSync(cliDir)) {
+        fs.mkdirSync(cliDir, { recursive: true });
+      }
+      var kbSearchDest = path.join(cliDir, 'kb-search.js');
+      var kbSearchExisted = fs.existsSync(kbSearchDest);
+      if (kbSearchExisted) {
+        var kbSearchBackup = kbSearchDest + '.backup';
+        if (!fs.existsSync(kbSearchBackup)) {
+          fs.copyFileSync(kbSearchDest, kbSearchBackup);
+          stats.backedUp++;
+          stats.backedUpFiles.push(toProjectRelative(kbSearchDest, projectRoot));
+        }
+      }
+      fs.copyFileSync(kbSearchSource, kbSearchDest);
+      if (kbSearchExisted) {
+        stats.updated++;
+      } else {
+        stats.created++;
+      }
+    }
+
     // Create init metadata for /start merge
     if (stats.backedUp > 0) {
       createInitMeta(projectRoot, previousVersion, newVersion, stats.backedUpFiles);

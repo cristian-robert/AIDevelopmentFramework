@@ -19,11 +19,13 @@ Combination rules:
 
 ## Skill Chain
 
-1. **architect-agent RETRIEVE** — understand page/component structure
-2. **Design skill** — chosen via gate above
-3. **shadcn MCP** — search and install components: `search_items_in_registries`, `view_items_in_registries`, `get_add_command_for_items`
-4. **context7 MCP** — verify framework API (Next.js, React, etc.)
-5. **tester-agent VERIFY/FLOW** — verify UI after implementation
+1. **KB search** (if KB configured) — search for relevant route/component/feature articles before starting
+2. **architect-agent RETRIEVE** — understand page/component structure
+3. **Design skill** — chosen via gate above
+4. **shadcn MCP** — search and install components: `search_items_in_registries`, `view_items_in_registries`, `get_add_command_for_items`
+5. **context7 MCP** — verify framework API (Next.js, React, etc.)
+6. **tester-agent VERIFY/FLOW** — verify UI after implementation
+7. **KB update** (if KB configured) — update wiki articles for new/changed routes, pages, or components
 
 ## Conventions
 

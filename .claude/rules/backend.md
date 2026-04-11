@@ -8,11 +8,13 @@ globs: ["**/backend/**", "**/server/**", "**/api/**", "**/*.controller.*", "**/*
 ## Skill Chain
 
 When working on backend code, follow this order:
-1. **architect-agent RETRIEVE** — understand current module structure before changes
-2. **context7 MCP** — verify framework API (NestJS, FastAPI, Express, etc.) before writing
-3. **Database MCP** — if schema changes needed, use Supabase MCP or direct SQL
-4. **Implement** — follow patterns from `.claude/references/code-patterns.md`
-5. **architect-agent RECORD** — update knowledge base after structural changes
+1. **KB search** (if KB configured) — search for relevant feature/architecture articles before starting
+2. **architect-agent RETRIEVE** — understand current module structure before changes
+3. **context7 MCP** — verify framework API (NestJS, FastAPI, Express, etc.) before writing
+4. **Database MCP** — if schema changes needed, use Supabase MCP or direct SQL
+5. **Implement** — follow patterns from `.claude/references/code-patterns.md`
+6. **architect-agent RECORD** — update knowledge base after structural changes
+7. **KB update** (if KB configured) — update wiki articles for new/changed modules, endpoints, or patterns
 
 ## Conventions
 

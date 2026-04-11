@@ -290,6 +290,31 @@ async function main() {
     }
   }
 
+  // Install cli/kb-search.js (knowledge base search tool)
+  var kbSearchSource = path.join(sourceDir, 'cli', 'kb-search.js');
+  if (fs.existsSync(kbSearchSource)) {
+    var cliDir = path.join(targetDir, 'cli');
+    if (!fs.existsSync(cliDir)) {
+      fs.mkdirSync(cliDir, { recursive: true });
+    }
+    var kbSearchDest = path.join(cliDir, 'kb-search.js');
+    var kbSearchExisted = fs.existsSync(kbSearchDest);
+    if (kbSearchExisted) {
+      var kbSearchBackup = kbSearchDest + '.backup';
+      if (!fs.existsSync(kbSearchBackup)) {
+        fs.copyFileSync(kbSearchDest, kbSearchBackup);
+        stats.backedUp++;
+        stats.backedUpFiles.push(toProjectRelative(kbSearchDest, targetDir));
+      }
+    }
+    fs.copyFileSync(kbSearchSource, kbSearchDest);
+    if (kbSearchExisted) {
+      stats.updated++;
+    } else {
+      stats.created++;
+    }
+  }
+
   // Create docs/plans directory
   var plansDir = path.join(targetDir, 'docs', 'plans');
   if (!fs.existsSync(plansDir)) {

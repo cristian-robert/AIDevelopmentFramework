@@ -1,5 +1,5 @@
 ---
-globs: .obsidian/**/*.md
+globs: [".obsidian/**/*.md", "**/wiki/**/*.md", "**/raw/**/*.md", "**/knowledge/**/*.md", "**/_search/**"]
 description: Auto-loads when editing knowledge base files. Enforces wiki article format, backlinks, and index consistency.
 ---
 

@@ -20,10 +20,12 @@ globs: ["**/mobile/**", "**/native/**", "**/*.native.*", "**/expo/**"]
 
 ## Skill Chain
 
-1. **architect-agent RETRIEVE** — understand screen/navigation structure
-2. **Expo skill** — appropriate skill from table above
-3. **context7 MCP** — verify Expo/React Native API
-4. **mobile-tester-agent VERIFY/FLOW** — verify on simulator after implementation
+1. **KB search** (if KB configured) — search for relevant screen/navigation/feature articles before starting
+2. **architect-agent RETRIEVE** — understand screen/navigation structure
+3. **Expo skill** — appropriate skill from table above
+4. **context7 MCP** — verify Expo/React Native API
+5. **mobile-tester-agent VERIFY/FLOW** — verify on simulator after implementation
+6. **KB update** (if KB configured) — update wiki articles for new/changed screens, navigation, or hooks
 
 ## Conventions
 
