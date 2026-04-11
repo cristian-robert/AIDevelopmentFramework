@@ -1,8 +1,9 @@
 {
   "name": "ai-development-framework",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The system around the AI that makes the AI reliable. Structured AI-assisted development with the PIV+E loop.",
   "bin": {
+    "ai-development-framework": "cli/index.js",
     "ai-framework": "cli/index.js"
   },
   "keywords": [
@@ -22,6 +23,14 @@
     "CLAUDE.md",
     "README.md"
   ],
+  "scripts": {
+    "kb:search": "node cli/kb-search.js search",
+    "kb:index": "node cli/kb-search.js index",
+    "kb:stats": "node cli/kb-search.js stats",
+    "test:kb": "node cli/kb-search.test.js && node cli/kb-integration.test.js",
+    "test:init": "node cli/init-backup.test.js",
+    "test": "node cli/kb-search.test.js && node cli/kb-integration.test.js && node cli/init-backup.test.js"
+  },
   "engines": {
     "node": ">=18"
   }

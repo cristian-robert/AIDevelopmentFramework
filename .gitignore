@@ -23,3 +23,15 @@ build/
 .obsidian/hotkeys.json
 .obsidian/plugins/
 .obsidian/themes/
+
+# KB search index (auto-generated, rebuild with: node cli/kb-search.js index)
+.obsidian/_search/index.json
+
+# Worktrees
+.worktrees/
+
+# Init/update metadata (temporary, consumed by /start merge)
+.claude/.init-meta.json
+
+# Backup files from init/update (temporary, consumed by /start merge)
+*.backup

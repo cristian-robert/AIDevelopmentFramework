@@ -14,15 +14,15 @@ AI coding assistants are powerful but unpredictable. They lose context, repeat m
 
 ```bash
 # In your project directory
-npx ai-framework init
+npx ai-development-framework init
 ```
 
-This downloads the latest framework and sets up `.claude/`, `CLAUDE.md`, and `docs/` in your project. Existing customizations are preserved — the CLI detects conflicts and asks how to handle them.
+This downloads the latest framework and sets up `.claude/`, `CLAUDE.md`, and `docs/` in your project. Existing files are backed up as `.backup` — run `/start` to merge your project configuration with the new framework.
 
 ### Update to latest version
 
 ```bash
-npx ai-framework update
+npx ai-development-framework update
 ```
 
 Updates framework files while preserving your project-specific configurations (knowledge bases, agent data, custom rules).
@@ -84,27 +84,36 @@ Plan ──> Implement ──> Validate ──> Evolve
 
 ```
 .claude/
-├── commands/       10 pipeline commands (the workflow)
+├── commands/       14 pipeline commands (incl. 4 /kb commands)
 ├── agents/         4 specialist agents + template
 ├── skills/         Framework-specific skills
-├── rules/          6 auto-loading domain rules + template
-├── references/     6 templates (PRD, plan, issue, patterns, knowledge base)
+├── rules/          8 auto-loading domain rules + template
+├── references/     7 templates (PRD, plan, issue, patterns, KB articles)
 └── hooks/          5 guardrails (branch protection, reminders)
+cli/
+└── kb-search.js    TF-IDF search tool for knowledge base
 ```
 
 ## Knowledge Base (Optional)
 
-An Obsidian-compatible project knowledge base that gives the agent persistent understanding across sessions. Feature specs, architecture decisions, and project context — stored as markdown, read and updated automatically by pipeline commands.
+A unified LLM knowledge base inspired by [Karpathy's LLM Knowledge Bases](https://x.com/karpathy) workflow. External research and project knowledge live together as a flat wiki. The LLM ingests raw sources, compiles them into wiki articles, auto-searches during task work, and grows the wiki from every coding session.
 
 ```
 .obsidian/           # or any custom path
-├── overview.md      # Project vision, goals, tech stack
-├── architecture/    # System design, data model
-├── features/        # One note per feature area, linked to GitHub issues
-├── decisions/       # Architecture Decision Records
-├── config/          # Integration metadata (never actual secrets)
-└── research/        # Brainstorming notes, tech comparisons
+├── raw/             # Ingested source material (articles, papers, docs, repos, sessions)
+│   └── _manifest.md # Index of all raw sources with status
+├── wiki/            # Unified wiki — all knowledge as flat .md files with frontmatter
+│   ├── _index.md    # Master index grouped by type
+│   └── _tags.md     # Tag registry with article counts
+└── _search/
+    └── index.json   # TF-IDF search index (auto-generated)
 ```
+
+**KB Commands:**
+- `/kb ingest <source>` — ingest URL, file, repo, or session learnings
+- `/kb compile` — expand stubs, cross-link, extract concepts, health check
+- `/kb search <query>` — TF-IDF search across wiki
+- `/kb ask <question>` — Q&A against wiki, answer filed back as new article
 
 **Enable it** by adding to your project's `CLAUDE.md`:
 
@@ -139,10 +148,10 @@ The adversarial review requires an OpenAI subscription and the Codex plugin. It 
 ## CLI Reference
 
 ```
-npx ai-framework init          Install framework in current project
-npx ai-framework update        Update framework files (preserves customizations)
-npx ai-framework --version     Show version
-npx ai-framework --help        Show help
+npx ai-development-framework init          Install framework (backs up existing files)
+npx ai-development-framework update        Update framework (backs up, run /start to merge)
+npx ai-development-framework --version     Show version
+npx ai-development-framework --help        Show help
 ```
 
 ## Documentation

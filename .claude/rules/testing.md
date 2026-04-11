@@ -35,3 +35,30 @@ globs: ["**/*.test.*", "**/*.spec.*", "**/test/**", "**/tests/**", "**/__tests__
 - Critical business logic: aim for high coverage
 - UI components: test behavior (clicks, form submissions), not rendering details
 - Don't chase 100% — test what matters
+
+## QA Automation (Mandatory)
+
+After every development task, QA automation tests are mandatory — not just unit tests.
+
+| Domain | QA Test Type | Default Tool | What to test |
+|--------|-------------|-------------|-------------|
+| Backend API | API E2E tests | Supertest/Pactum | Endpoints respond correctly, auth works, error responses match format |
+| Frontend Web | Browser E2E tests | Playwright | User flows, form submissions, navigation, responsive viewports |
+| Mobile | Mobile E2E tests | Detox/Maestro | Screen navigation, gestures, form inputs, platform-specific behavior |
+| Database | Migration tests | Project test runner | Migrations up/down, seed data, constraints hold |
+
+Override defaults in CLAUDE.md `## QA Tools` section.
+
+## QA Test Placement
+
+- NEVER create a new test file without first checking existing test files for the same feature area
+- Prefer adding test cases to existing files over creating new ones
+- One E2E test file per feature area, not per implementation task
+- Spawn a test-planning subagent before writing QA tests to avoid context bloat
+- The subagent scans, plans placement, reports — it does NOT write tests
+
+## Test Users
+
+- Credentials stored as GitHub secrets: `TEST_USER_EMAIL`, `TEST_USER_PASSWORD`, `TEST_ADMIN_EMAIL`, `TEST_ADMIN_PASSWORD`
+- For local development: stored in `.env.test` (gitignored)
+- Never hardcode test credentials in test files — read from environment

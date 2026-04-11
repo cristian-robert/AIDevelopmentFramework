@@ -44,7 +44,7 @@ Open-source agentic AI coding framework built on the PIV+E loop (Plan, Implement
 
 For non-trivial tasks, choose your discipline level:
 
-- **Superpowers Mode:** Full PIV+E pipeline — brainstorm → plan → TDD → execute → verify → review → ship → evolve
+- **Superpowers Mode:** Full PIV+E pipeline — brainstorm → plan → TDD → execute (subagent-driven) → /validate (QA + security + visual + review) → ship → evolve
 - **Standard Mode:** Lighter workflow — plan → implement → validate → ship
 
 ## Agents
@@ -56,30 +56,59 @@ For non-trivial tasks, choose your discipline level:
 
 ## Knowledge Base
 
-Optional Obsidian-compatible project knowledge base. Stores feature specs, architecture decisions, and project overview as markdown notes that the agent reads/writes during the pipeline.
+Unified LLM knowledge base inspired by [Karpathy's LLM Knowledge Bases](https://x.com/karpathy) workflow. External research and project knowledge live together as a flat wiki. The LLM ingests raw sources, compiles them into wiki articles, auto-searches during task work, and grows the wiki from every coding session.
 
 **Configuration:** Add `## Knowledge Base` with `Path: <path>` to your project's CLAUDE.md. Default: `.obsidian/`. Remove the section to disable.
 
 **Structure:**
 ```
 <path>/
-├── overview.md          # Project vision, goals, tech stack
-├── architecture/        # System design, data model
-├── features/            # One note per feature area, linked to GitHub issues
-├── decisions/           # Architecture Decision Records (ADRs)
-├── config/              # Integration metadata, env var names (never actual secrets)
-└── research/            # Brainstorming notes, tech comparisons
+├── raw/                 # Ingested source material (articles, papers, docs, repos, session learnings)
+│   └── _manifest.md     # Index of all raw sources with status
+├── wiki/                # Unified wiki — ALL knowledge as flat .md files with frontmatter
+│   ├── _index.md        # Master index grouped by type
+│   └── _tags.md         # Tag registry with article counts
+└── _search/
+    ├── index.json       # TF-IDF search index (auto-generated)
+    └── stats.md         # KB health metrics
 ```
 
-**When commands read it:**
-- `/prime` — loads overview + related feature notes (smart/targeted)
-- `/execute` — reads feature context before implementing
+**KB Commands:**
+- `/kb ingest <source>` — ingest URL, file, repo, or session learnings into raw/ + create wiki stub
+- `/kb compile` — deep compilation: expand stubs, cross-link, extract concepts, health check
+- `/kb search <query>` — TF-IDF search across wiki (used by LLM and user)
+- `/kb ask <question>` — Q&A against wiki, answer filed back as new article
 
-**When commands write it:**
-- `/start` (L0) — creates structure + feature notes during brainstorming
-- `/create-prd` — seeds overview + architecture from PRD
-- `/plan-project` — creates feature notes alongside GitHub issues
-- `/ship` — updates feature notes with implementation details
+**When pipeline commands read it:**
+- `/prime` — reads wiki index + auto-searches for task-relevant articles
+- `/execute` — searches wiki before each task for relevant context
+
+**When pipeline commands write it:**
+- `/start` (L0) — creates KB structure + initial wiki articles
+- `/create-prd` — seeds wiki with project overview, architecture, feature articles
+- `/plan-project` — creates/updates feature articles alongside GitHub issues
+- `/ship` — updates feature articles with implementation details, creates decision articles
+- `/evolve` — captures session learnings as raw + stub wiki articles
+
+## Post-Init Merge
+
+When `.claude/.init-meta.json` exists, the framework was recently installed or updated. Files with `.backup` extensions contain the project's previous versions. The `/start` command will detect this and run the merge flow before normal routing.
+
+**Merge rules by file type:**
+
+| File | Strategy |
+|------|----------|
+| `CLAUDE.md` | Merge project-specific sections (Tech Stack, Knowledge Base, Design Skill Preference, QA Tools, custom sections) into new template. Preserve all user-added content. |
+| `.claude/rules/*.md` | Append user-added conventions, checklist items, and skill chain customizations to new framework rules. Don't duplicate entries already in the new version. |
+| `.claude/commands/*.md` | If user modified a command, present diff and ask. Otherwise skip (no merge needed). |
+| `.claude/references/code-patterns.md` | Always restore from backup — entirely project-specific. |
+| `.claude/references/*.md` (other) | Skip — framework templates, no project content. |
+| `.claude/agents/architect-agent/*` | Always restore from backup — project knowledge base. |
+| `.claude/agents/tester-agent/*` | Always restore from backup — project test patterns. |
+| `.claude/agents/mobile-tester-agent/*` | Always restore from backup — project screen patterns. |
+| `.obsidian/**` | Always restore from backup — project wiki and raw sources. |
+
+**Merge process:** For each `.backup` file, read both versions, present a summary of what will be merged, wait for user approval, then apply. Delete `.backup` files and `.init-meta.json` when complete.
 
 ## Code Review Layers
 
@@ -87,10 +116,28 @@ The framework supports two complementary review layers:
 
 | Layer | Command | What it checks | Required |
 |-------|---------|---------------|----------|
-| **Superpowers Code Review** | `/validate` Phase 3 | Implementation defects, plan adherence, security, edge cases | Always available |
+| **Superpowers Code Review** | `/validate` Phase 5 | Implementation defects, plan adherence, security, edge cases | Always available |
 | **Codex Adversarial Review** | `/ship` Step 1.6 | Design choices, tradeoffs, assumptions, alternative approaches | Optional (requires OpenAI subscription + Codex plugin) |
 
 These are additive — the adversarial review questions whether the *approach* is right, while the code review checks whether the *implementation* is correct.
+
+## Verification Standard
+
+Both Standard and Superpowers modes MUST run `/validate` before `/ship`. The superpowers `verification-before-completion` skill is NOT a substitute for `/validate`. The superpowers `requesting-code-review` skill is NOT a substitute for `/validate` Phase 5.
+
+After implementation (via `/execute` or `superpowers:subagent-driven-development`), always run `/validate` to verify: automated checks, visual testing, QA tests, security scans, and code review.
+
+**Superpowers KB integration:** When using `superpowers:subagent-driven-development`, search the wiki (`KB_PATH=<kb-path> node cli/kb-search.js search "<keywords>"`) before dispatching each task implementer to provide relevant project context.
+
+## QA Tools
+
+Default QA test tools by domain. Override per-project by editing this section.
+
+| Domain | Tool |
+|--------|------|
+| Web E2E | Playwright |
+| API E2E | Supertest |
+| Mobile E2E | Detox |
 
 ## Rules & References
 

@@ -9,28 +9,42 @@ Handles the full shipping workflow: staging, committing, pushing, and creating a
 1. Verify all tests pass: `npm test` (or detected test command)
 2. Verify no uncommitted changes that shouldn't be included
 3. Check current branch is not main/master
+4. Verify `/validate` has been run in this session. If not:
+   - Ask: "/validate hasn't been run yet. Run it now before shipping?"
+   - If yes: run `/validate`, then continue `/ship` if it passes
+   - If no: warn that shipping without validation is not recommended, but allow if user insists
+5. Verify QA tests exist for changed domains:
+   - Check `git diff --name-only main...HEAD` for backend/frontend/mobile changes
+   - For each changed domain, verify corresponding E2E test files exist
+   - If missing: warn "No QA tests found for [domain]. Run `/validate` to create them."
 
 ### Step 1.5: Update Knowledge Base (if configured)
 
 Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value. If configured:
 
-1. **Find the feature note:** Detect the current issue number from the branch name. Grep `<kb-path>/features/*.md` for that issue number. If no match, use keyword matching between branch name and feature note filenames.
+1. **Find the feature article:** Search for the current issue: `KB_PATH=<kb-path> node cli/kb-search.js search "#<issue-number>" --type=feature`. If no match, search by branch name keywords.
 
-2. **Update the feature note:**
-   - `## Implementation Notes` — append what was built: key files created/modified, endpoints added, components built, patterns used
-   - `## GitHub Issues` — update the status of the current issue to reflect completion
-   - `## Key Decisions` — add any decisions made during implementation that weren't pre-planned
+2. **Update the feature article** (or create one if none exists):
+   - Update `## Implementation Notes` — key files created/modified, endpoints, components, patterns
+   - Update `## GitHub Issues` — mark the current issue as completed
+   - Update `## Key Decisions` — add decisions made during implementation
+   - Update `updated:` date in frontmatter
+   - Add/update backlinks to any new related articles
 
-3. **Create decision records** (only if warranted):
-   - A technology or approach was chosen over alternatives during implementation
-   - A pattern was established that future features should follow
-   - Something was intentionally excluded and the reason matters for future work
+3. **Create decision articles** (only if warranted):
+   - Use the decision article template from `.claude/references/kb-article-template.md`
+   - Save to `wiki/adr-NNN-<slugified-title>.md` (type: `decision`)
+   - Add backlinks from the feature article
 
-4. **Update overview** (only if significant):
-   - New integration or service was added to the stack
-   - Project scope changed
+4. **Update project overview** (only if significant):
+   - Search: `KB_PATH=<kb-path> node cli/kb-search.js search "project overview" --type=reference`
+   - Update the project overview article if scope or stack changed
 
-5. Stage knowledge base changes alongside code changes.
+5. **Rebuild indexes:**
+   - Update `wiki/_index.md` and `wiki/_tags.md`
+   - Run: `KB_PATH=<kb-path> node cli/kb-search.js index`
+
+6. Stage knowledge base changes alongside code changes: `git add <kb-path>/wiki/ <kb-path>/raw/`
 
 If no knowledge base configured, skip to Step 2.
 

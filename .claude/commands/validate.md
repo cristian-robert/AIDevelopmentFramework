@@ -42,7 +42,55 @@ git diff --name-only main...HEAD
 - Check: endpoints respond with correct status codes
 - If Supabase: run `get_advisors` for schema safety
 
-### Phase 3: Security Verification
+### Phase 3: QA Test Verification
+
+QA automation tests are mandatory for all domains affected by the implementation.
+
+**Step 1: Detect changed domains**
+
+```bash
+git diff --name-only main...HEAD
+```
+
+Categorize changed files:
+- Backend API files (routes, controllers, services) → needs API E2E tests
+- Frontend files (pages, components) → needs browser E2E tests
+- Mobile files (.ios.tsx, .android.tsx, Expo screens) → needs mobile E2E tests
+- Database files (migrations, schemas) → needs migration tests
+
+**Step 2: Spawn test-planning subagent**
+
+Before writing any QA tests, spawn a subagent to plan test placement. The subagent:
+1. Scans existing test directories for E2E/integration tests
+2. Maps which features/routes/endpoints already have coverage
+3. Checks if current changes affect assertions in existing tests
+4. Reports back: list of test files to update + new test files to create (if any)
+
+The subagent does NOT write tests — it only produces the placement plan.
+
+**Step 3: Update affected existing tests**
+
+If the planning subagent identified existing tests affected by the implementation, update them first:
+- Fix broken assertions caused by the implementation changes
+- Add new test cases to existing files for new behavior
+
+**Step 4: Create new QA tests (only where no coverage exists)**
+
+Using the planning subagent's report, create new test files only for uncovered areas:
+- One E2E test file per feature area, not per implementation task
+- Use the project's QA tool (check CLAUDE.md `## QA Tools` section, or defaults: Playwright for web, Supertest for API, Detox for mobile)
+- Test users: read credentials from `.env.test` (local) or reference GitHub secrets documentation
+
+**Step 5: Run all QA tests**
+
+```bash
+# Detect and run (project-specific command takes priority)
+npm run test:e2e 2>/dev/null || npx playwright test 2>/dev/null || echo "No E2E test runner configured"
+```
+
+If any QA test fails, report the failure and offer to fix it before continuing.
+
+### Phase 4: Security Verification
 
 Run the automated security checks from `.claude/references/security-checklist.md`:
 
@@ -94,14 +142,14 @@ Run the automated security checks from `.claude/references/security-checklist.md
    - Non-critical items flagged → **Security: PASSED WITH WARNINGS** — list items
    - Critical items found (hardcoded secrets, SQL injection, missing auth) → **Security: FAILED** — must fix before shipping
 
-### Phase 4: Code Review
+### Phase 5: Code Review
 
 Invoke the code review skill:
 - Review against the implementation plan (does the code match the plan?)
 - Check for common issues: error handling, edge cases, security
 - Verify no debug code left (console.log, TODO comments, commented-out code)
 
-### Phase 5: Report
+### Phase 6: Report
 
 ```
 === Validation Report ===
@@ -113,6 +161,11 @@ Automated Checks:
 
 Visual Verification:
 - [Page/Screen]: PASS / FAIL — [description]
+
+QA Tests:
+- API E2E: PASS (N/N) / N failures / not applicable
+- Browser E2E: PASS (N/N) / N failures / not applicable
+- Mobile E2E: PASS (N/N) / N failures / not applicable
 
 Security Verification:
 - Hardcoded secrets: PASS / FAIL

@@ -31,13 +31,13 @@ Read every file listed in the plan's "Mandatory Reading" section. This ensures y
 
 Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value. If configured:
 
-1. Detect the issue number from the plan file or current branch
-2. Grep `<kb-path>/features/*.md` for the issue number — read the matching feature note
-3. Scan other feature notes (first 5 lines each) for related features — read any with clear overlap
-4. Check `<kb-path>/decisions/` for decisions referencing the same feature area
-5. Read `<kb-path>/overview.md` for project context
+1. Read `<kb-path>/wiki/_index.md` for an overview of available knowledge
+2. Extract keywords from the current task description
+3. Run: `KB_PATH=<kb-path> node cli/kb-search.js search "<task keywords>"`
+4. Read the top 3-5 matching wiki articles in full
+5. If working on a specific issue, also search: `KB_PATH=<kb-path> node cli/kb-search.js search "#<issue-number>" --type=feature`
 
-This supplements the plan's mandatory reading with project-level context the plan author may not have included.
+This supplements the plan's mandatory reading with wiki knowledge the plan author may not have included. The search automatically finds relevant concepts, decisions, and feature context.
 
 If no knowledge base configured, skip this step.
 
