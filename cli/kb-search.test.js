@@ -104,6 +104,7 @@ status: active
 Proper index design is critical for query performance. B-tree indexes work
 well for equality and range queries. Composite indexes should be ordered by
 selectivity. Avoid over-indexing as it degrades write performance.
+See issue #5 for benchmark results.
 `
   );
 
@@ -311,6 +312,27 @@ function testAutoRebuildIndex() {
   }
 }
 
+function testSingleDigitIssueSearch() {
+  const name = 'search for single digit "5" finds article with issue #5 reference';
+  try {
+    const output = runCLI(['search', '5']);
+    const result = JSON.parse(output);
+
+    assert(Array.isArray(result.results), 'results should be an array');
+    assert(result.results.length > 0, 'single-digit search should return at least one result');
+
+    const files = result.results.map((r) => r.file);
+    assert(
+      files.includes('wiki/database-indexing.md'),
+      `database-indexing.md (contains #5) should appear in results, got [${files}]`
+    );
+
+    pass(name);
+  } catch (err) {
+    fail(name, err);
+  }
+}
+
 // ─── Runner ──────────────────────────────────────────────────────────────────
 
 console.log('\nkb-search tests\n');
@@ -325,6 +347,7 @@ try {
   testStatsOutput();
   testSearchGibberishReturnsEmpty();
   testAutoRebuildIndex();
+  testSingleDigitIssueSearch();
 } finally {
   cleanup();
 }

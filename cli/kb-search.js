@@ -60,7 +60,7 @@ function tokenize(text) {
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
-    .filter((t) => t.length > 1);
+    .filter((t) => t.length > 1 || /^\d$/.test(t));
 }
 
 // ─── TF-IDF builder ───────────────────────────────────────────────────────────
@@ -143,7 +143,12 @@ function loadIndex() {
     const anyNewer = wikiFiles.some(
       (f) => fs.statSync(path.join(WIKI_DIR, f)).mtimeMs > indexMtime
     );
-    const index = JSON.parse(fs.readFileSync(INDEX_FILE, 'utf-8'));
+    let index;
+    try {
+      index = JSON.parse(fs.readFileSync(INDEX_FILE, 'utf-8'));
+    } catch (e) {
+      return buildIndex();
+    }
     if (anyNewer || wikiFiles.length !== index.docs.length) return buildIndex();
     return index;
   }
