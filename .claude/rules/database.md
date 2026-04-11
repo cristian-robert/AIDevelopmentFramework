@@ -19,6 +19,17 @@ globs: ["**/migrations/**", "**/*.sql", "**/schema*", "**/prisma/**", "**/drizzl
 - Use foreign key constraints for referential integrity
 - RLS policies on all user-facing tables (Supabase)
 
+## Security
+
+- No SQL string concatenation — use parameterized queries or ORM exclusively
+- Application must use a limited-permission DB user, not root
+- Database must not be publicly accessible — behind VPC or firewall rule
+- Backups configured and restore procedure has been tested (not just backup)
+- Sensitive fields (PII, credentials, tokens) encrypted at rest
+- RLS policies on all user-facing tables (Supabase)
+
+See full checklist: `.claude/references/security-checklist.md`
+
 ## Post-DDL Checklist
 
 After any schema change:

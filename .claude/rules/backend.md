@@ -22,6 +22,26 @@ When working on backend code, follow this order:
 - Database queries go through a repository/service layer
 - Environment-specific config via env vars, never hardcoded
 
+## Security
+
+- Passwords hashed with bcrypt or argon2 (minimum 12 rounds) — never store plaintext
+- Tokens in httpOnly cookies — never localStorage
+- JWT secrets: random, minimum 32 characters, never hardcoded
+- Access tokens expire within 15–60 minutes; implement refresh token rotation
+- Rate limiting on /login, /register, and all public-facing endpoints
+- Account lockout after repeated authentication failures
+- Sessions invalidated server-side on logout
+- Every route must verify authentication — check all endpoints, not just obvious ones
+- Authorization enforced: users can only access their own data
+- API responses must never expose passwords, hashes, or internal fields
+- Error messages must not reveal system internals, stack traces, or file paths
+- CORS restricted to specific allowed domains — never wildcard `*`
+- HTTPS enforced, HTTP redirected
+- No hardcoded credentials or secrets — use environment variables
+- Run `npm audit` before shipping; resolve all critical vulnerabilities
+
+See full checklist: `.claude/references/security-checklist.md`
+
 ## Testing
 
 - Service methods: unit test with mocked dependencies

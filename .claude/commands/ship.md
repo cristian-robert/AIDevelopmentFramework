@@ -34,7 +34,41 @@ Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value. If confi
 
 If no knowledge base configured, skip to Step 2.
 
-### Step 1.6: Codex Adversarial Review (optional)
+### Step 1.6: Security Pre-flight Check
+
+Run the automated security scans from `.claude/references/security-checklist.md`:
+
+1. **Quick automated scan:**
+   ```bash
+   # Hardcoded secrets
+   grep -rn "password\s*=\s*['\"]" --include="*.ts" --include="*.js" --exclude-dir=node_modules . && echo "FAIL" || echo "PASS"
+   grep -rn "secret\s*=\s*['\"]" --include="*.ts" --include="*.js" --exclude-dir=node_modules . && echo "FAIL" || echo "PASS"
+   grep -rn "api[_-]key\s*=\s*['\"]" --include="*.ts" --include="*.js" --exclude-dir=node_modules . && echo "FAIL" || echo "PASS"
+
+   # .env in git history
+   git log --all --full-history -- .env && echo "WARNING" || echo "PASS"
+
+   # SQL injection vectors
+   grep -rn "query.*+.*\"\|query.*\`.*\${" --include="*.ts" --include="*.js" --exclude-dir=node_modules . && echo "FAIL" || echo "PASS"
+
+   # Wildcard CORS
+   grep -rn "origin:\s*['\"]\\*['\"]" --include="*.ts" --include="*.js" --exclude-dir=node_modules . && echo "FAIL" || echo "PASS"
+
+   # Tokens in localStorage
+   grep -rn "localStorage.*token\|localStorage.*jwt\|localStorage.*auth" --include="*.ts" --include="*.js" --include="*.tsx" --include="*.jsx" --exclude-dir=node_modules . && echo "FAIL" || echo "PASS"
+
+   # Console.log in production
+   grep -r "console\.log" --include="*.ts" --include="*.js" --exclude-dir=node_modules --exclude-dir=__tests__ . && echo "WARNING" || echo "PASS"
+
+   # npm audit
+   npm audit --audit-level=critical 2>/dev/null || echo "SKIP"
+   ```
+
+2. **If any FAIL:** Stop the ship process. Report failures and require fixes before re-running `/ship`.
+3. **If only WARNINGs:** Report warnings to the user. Ask: "Proceed with these warnings, or fix first?"
+4. **If all PASS:** Continue to next step.
+
+### Step 1.7: Codex Adversarial Review (optional)
 
 This step requires an OpenAI subscription and the Codex plugin installed. If not available, skip to Step 2.
 
