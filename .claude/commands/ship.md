@@ -9,6 +9,14 @@ Handles the full shipping workflow: staging, committing, pushing, and creating a
 1. Verify all tests pass: `npm test` (or detected test command)
 2. Verify no uncommitted changes that shouldn't be included
 3. Check current branch is not main/master
+4. Verify `/validate` has been run in this session. If not:
+   - Ask: "/validate hasn't been run yet. Run it now before shipping?"
+   - If yes: run `/validate`, then continue `/ship` if it passes
+   - If no: warn that shipping without validation is not recommended, but allow if user insists
+5. Verify QA tests exist for changed domains:
+   - Check `git diff --name-only main...HEAD` for backend/frontend/mobile changes
+   - For each changed domain, verify corresponding E2E test files exist
+   - If missing: warn "No QA tests found for [domain]. Run `/validate` to create them."
 
 ### Step 1.5: Update Knowledge Base (if configured)
 

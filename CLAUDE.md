@@ -44,7 +44,7 @@ Open-source agentic AI coding framework built on the PIV+E loop (Plan, Implement
 
 For non-trivial tasks, choose your discipline level:
 
-- **Superpowers Mode:** Full PIV+E pipeline — brainstorm → plan → TDD → execute → verify → review → ship → evolve
+- **Superpowers Mode:** Full PIV+E pipeline — brainstorm → plan → TDD → execute (subagent-driven) → /validate (QA + security + visual + review) → ship → evolve
 - **Standard Mode:** Lighter workflow — plan → implement → validate → ship
 
 ## Agents

@@ -2,6 +2,49 @@
 
 You are the entry point to the AIDevelopmentFramework PIV+E pipeline. Your job is to detect where the user is in their workflow and route them to the right commands.
 
+## Step 0: Check for Pending Merge
+
+Check if `.claude/.init-meta.json` exists. If it does, the framework was recently installed or updated and project-specific files need to be merged.
+
+1. Read `.claude/.init-meta.json` to get the list of backed-up files
+2. Announce: "Detected a recent framework init/update (vX → vY). N files were backed up. I'll merge your project-specific content into the new framework files."
+3. Process each backed-up file by category, in this order:
+
+   **CLAUDE.md:**
+   - Read `CLAUDE.md` (new) and `CLAUDE.md.backup` (old)
+   - Identify project-specific sections in the old file: `## Tech Stack`, `## Knowledge Base`, `## Design Skill Preference`, `## QA Tools`, any user-added sections not in the framework template
+   - Present merge plan: "Your old CLAUDE.md had these project-specific sections: [list]. I'll merge them into the new framework template."
+   - Wait for user approval → write merged file → delete `CLAUDE.md.backup`
+
+   **Rules (`.claude/rules/*.md`):**
+   - For each rule with a `.backup`: diff old vs new
+   - Identify user-added conventions, checklist items, skill chain customizations
+   - Present: "Your [rule].md had N extra items. I'll add them to the new version."
+   - Wait for user approval → merge → delete `.backup`
+
+   **Commands (`.claude/commands/*.md`):**
+   - For each command with a `.backup`: compare old content to the PREVIOUS framework version (not user changes)
+   - If content is identical to previous framework version → no user changes → delete `.backup` silently
+   - If user modified → present diff → wait for approval → merge or keep new → delete `.backup`
+
+   **References (`.claude/references/*.md`):**
+   - `code-patterns.md`: always restore from `.backup` (entirely project-specific)
+   - All others: delete `.backup` silently (framework templates, no project content)
+
+   **Agents:**
+   - All architect-agent, tester-agent, mobile-tester-agent files: always restore from `.backup`
+   - Delete `.backup` files after restore
+
+   **KB content (`.obsidian/**`):**
+   - Always restore from `.backup` — project wiki and raw sources
+   - Delete `.backup` files after restore
+
+4. Delete `.claude/.init-meta.json`
+5. Report: "Merge complete. N files merged, N files restored. Your project configuration is up to date."
+6. Continue to Step 1 (normal `/start` routing)
+
+If `.claude/.init-meta.json` does NOT exist, skip directly to Step 1.
+
 ## Step 1: Gather Context
 
 Run these in parallel:
@@ -68,7 +111,7 @@ For L0, L1, and complex L2 tasks, ask:
 
 > **Which mode?**
 >
-> - **Superpowers Mode** — Full discipline: brainstorm, plan, TDD, execute, verify, review, ship, evolve
+> - **Superpowers Mode** — Full discipline: brainstorm, plan, TDD, execute (subagent-driven), /validate (security + visual + QA + code review), ship, evolve
 > - **Standard Mode** — Lighter: plan, implement, validate, ship
 
 For L3 (bugs) and simple L2 (size S/M), default to Standard Mode without asking.
