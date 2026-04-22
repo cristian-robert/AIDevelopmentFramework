@@ -23,5 +23,18 @@
     ],
     "deny": []
   },
-  "enableAllProjectMcpServers": true
+  "enableAllProjectMcpServers": true,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "TodoWrite|TaskUpdate",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/spec-reviewer-enforce.sh"
+          }
+        ]
+      }
+    ]
+  }
 }

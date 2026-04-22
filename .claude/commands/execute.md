@@ -41,23 +41,41 @@ This supplements the plan's mandatory reading with wiki knowledge the plan autho
 
 If no knowledge base configured, skip this step.
 
-### Step 3: Execute Tasks
+### Step 3: Execute Tasks (implementer → reviewer loop, mandatory)
 
-For each task in the plan:
+For each task in the plan, dispatch TWO subagents in sequence:
 
-1. **Announce:** "Starting Task N: [task name]"
-2. **Read** all files listed in the task's "Files" section
-3. **For each step:**
-   - If it's a test step: write the test exactly as specified
-   - If it's a verification step: run the exact command, check output matches expected
-   - If it's an implementation step: write the code as specified
-   - If it's a commit step: stage and commit with the specified message
-4. **If a test fails unexpectedly:**
-   - Read the error output carefully
-   - Fix the implementation (not the test, unless the test has a bug)
-   - Re-run the test
-   - If stuck after 3 attempts, stop and report the issue
-5. **After task completion:** mark the task checkbox as done in the plan file
+**3a. Task Implementer**
+1. Announce: "Starting Task N: [task name] — dispatching implementer"
+2. Dispatch via superpowers:subagent-driven-development with role `task-implementer`
+3. Implementer reads plan task + mandatory files, writes tests first, implements, verifies
+4. On implementer return: capture diff (`git diff`) and task exit status
+
+**3b. Spec Reviewer (MANDATORY — DO NOT SKIP)**
+1. Announce: "Task N implementer complete — dispatching spec-reviewer"
+2. Dispatch subagent with role `spec-reviewer`, passing:
+   - The plan task spec
+   - The implementer's diff
+   - `.claude/references/spec-reviewer-protocol.md`
+3. Reviewer runs the protocol checklist + adversarial questions:
+   - "Is the implementer's approach the simplest viable?"
+   - "What could be cut without losing acceptance criteria?"
+   - "What edge case is missing?"
+   - "Does any choice contradict an existing pattern/reference?"
+4. Reviewer returns PASS or REQUEST_CHANGES with specific blockers
+5. If REQUEST_CHANGES: return to 3a with reviewer output; do NOT proceed to next task
+6. If PASS: mark task checkbox done; proceed
+
+**Enforcement:** The PostToolUse hook `.claude/hooks/spec-reviewer-enforce.sh` watches TodoWrite/TaskUpdate completions. If an implementer task is marked completed without a paired reviewer dispatch in the preceding N tool calls, the hook prints a warning to stderr and blocks the next tool call. Override only with explicit user confirmation.
+
+### Step 3.5: Marker File Discipline
+
+To make the enforcement hook reliable across sessions and transcript formats, `/execute` maintains a marker file at `.claude/.last-impl-task`:
+
+- After dispatching a task-implementer (Step 3a), write `implementer` to the marker file.
+- After a spec-reviewer returns PASS (Step 3b), write `reviewer` to the marker file.
+- If the marker reads `implementer` when the hook fires (Step 3 pairing check), the hook blocks further tool use.
+- The marker file is gitignored; it exists only for the duration of an `/execute` run.
 
 ### Step 4: Validation
 
