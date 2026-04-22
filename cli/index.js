@@ -22,7 +22,14 @@ switch (command) {
     break;
   case '--help':
   case '-h':
-  case undefined:
+  case undefined: {
+    // Pull kb-search help from the canonical source rather than duplicating
+    // flag / subcommand text here. Indent each line by two spaces so it
+    // aligns with the surrounding sections.
+    const kbHelp = require('./kb-search.js').HELP_TEXT
+      .split('\n')
+      .map(function (line) { return line ? '  ' + line : line; })
+      .join('\n');
     console.log(`
 AIDevelopmentFramework — The system around the AI that makes the AI reliable.
 
@@ -33,15 +40,16 @@ Usage:
   npx ai-development-framework --help        Show this help message
 
 Knowledge base tools (run from your project after install):
-  node cli/kb-search.js index                                     Build / rebuild the wiki search index
-  node cli/kb-search.js search <q> [--type=T] [--tag=T] [--limit=N]
-                                              Search the wiki (prints JSON)
-  node cli/kb-search.js stats                                     Print KB statistics
+  Invoke as: node cli/kb-search.js <command> [args] [flags]
+
+${kbHelp}
+
   node cli/lean-index.js                                          (coming soon) lean context index builder
 
 Docs: https://github.com/cristian-robert/AIDevelopmentFramework
     `);
     break;
+  }
   default:
     console.error('Unknown command: ' + command);
     console.log('Run "npx ai-development-framework --help" for usage information.');
