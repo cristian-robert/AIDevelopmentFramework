@@ -32,6 +32,13 @@ Usage:
   npx ai-development-framework --version     Show version
   npx ai-development-framework --help        Show this help message
 
+Knowledge base tools (run from your project after install):
+  node cli/kb-search.js index                                     Build / rebuild the wiki search index
+  node cli/kb-search.js search <q> [--type=T] [--tag=T] [--limit=N]
+                                              Search the wiki (prints JSON)
+  node cli/kb-search.js stats                                     Print KB statistics
+  node cli/lean-index.js                                          (coming soon) lean context index builder
+
 Docs: https://github.com/cristian-robert/AIDevelopmentFramework
     `);
     break;

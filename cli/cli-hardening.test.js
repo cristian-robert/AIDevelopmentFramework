@@ -215,6 +215,131 @@ test('copyClaudeMdWithBackup preserves pre-existing backup on failure', () => {
   );
 });
 
+// ─── Task 2: flag validation, --limit, --help ────────────────────────────────
+
+test('empty query exits non-zero with error message', () => {
+  const kbPath = path.join(TMP, 'kb-empty-query');
+  fs.mkdirSync(path.join(kbPath, 'wiki'), { recursive: true });
+  fs.writeFileSync(
+    path.join(kbPath, 'wiki', 'a.md'),
+    '---\ntitle: A\ntags: [x]\n---\nbody text here'
+  );
+
+  let status = 0;
+  let stderr = '';
+  try {
+    execFileSync('node', [path.join(__dirname, 'kb-search.js'), 'search', ''], {
+      env: { ...process.env, KB_PATH: kbPath },
+      stdio: 'pipe',
+    });
+    throw new Error('should have exited non-zero');
+  } catch (e) {
+    status = e.status;
+    stderr = (e.stderr && e.stderr.toString()) || '';
+  }
+  assert.ok(status !== 0, 'empty query must exit non-zero');
+  assert.ok(/empty query/i.test(stderr), 'stderr must mention empty query, got: ' + stderr);
+});
+
+test('--type= empty value is rejected', () => {
+  const kbPath = path.join(TMP, 'kb-empty-type');
+  fs.mkdirSync(path.join(kbPath, 'wiki'), { recursive: true });
+  fs.writeFileSync(
+    path.join(kbPath, 'wiki', 'a.md'),
+    '---\ntitle: A\ntags: [x]\n---\nbody text here'
+  );
+
+  let status = 0;
+  try {
+    execFileSync(
+      'node',
+      [path.join(__dirname, 'kb-search.js'), 'search', 'foo', '--type='],
+      { env: { ...process.env, KB_PATH: kbPath }, stdio: 'pipe' }
+    );
+    throw new Error('should have exited non-zero');
+  } catch (e) {
+    status = e.status;
+  }
+  assert.ok(status !== 0, '--type= with empty value must exit non-zero');
+});
+
+test('--tag= empty value is rejected', () => {
+  const kbPath = path.join(TMP, 'kb-empty-tag');
+  fs.mkdirSync(path.join(kbPath, 'wiki'), { recursive: true });
+  fs.writeFileSync(
+    path.join(kbPath, 'wiki', 'a.md'),
+    '---\ntitle: A\ntags: [x]\n---\nbody text here'
+  );
+
+  let status = 0;
+  try {
+    execFileSync(
+      'node',
+      [path.join(__dirname, 'kb-search.js'), 'search', 'foo', '--tag='],
+      { env: { ...process.env, KB_PATH: kbPath }, stdio: 'pipe' }
+    );
+    throw new Error('should have exited non-zero');
+  } catch (e) {
+    status = e.status;
+  }
+  assert.ok(status !== 0, '--tag= with empty value must exit non-zero');
+});
+
+test('--limit=N limits results', () => {
+  const kbPath = path.join(TMP, 'kb-limit');
+  const wiki = path.join(kbPath, 'wiki');
+  fs.mkdirSync(wiki, { recursive: true });
+  // Seed 10 articles that all contain the word "alpha" so the search returns them all.
+  for (let i = 0; i < 10; i++) {
+    fs.writeFileSync(
+      path.join(wiki, 'doc-' + i + '.md'),
+      '---\ntitle: Doc ' + i + '\ntags: [x]\n---\nalpha beta body ' + i
+    );
+  }
+
+  const out = execFileSync(
+    'node',
+    [path.join(__dirname, 'kb-search.js'), 'search', 'alpha', '--limit=3'],
+    { env: { ...process.env, KB_PATH: kbPath }, encoding: 'utf-8' }
+  );
+  const res = JSON.parse(out);
+  assert.strictEqual(res.results.length, 3, 'results length must equal --limit');
+  assert.strictEqual(res.total, 10, 'total must reflect full match count, not the limit');
+});
+
+test('--limit=0 is rejected', () => {
+  const kbPath = path.join(TMP, 'kb-limit-zero');
+  fs.mkdirSync(path.join(kbPath, 'wiki'), { recursive: true });
+  fs.writeFileSync(
+    path.join(kbPath, 'wiki', 'a.md'),
+    '---\ntitle: A\ntags: [x]\n---\nalpha body'
+  );
+
+  let status = 0;
+  try {
+    execFileSync(
+      'node',
+      [path.join(__dirname, 'kb-search.js'), 'search', 'alpha', '--limit=0'],
+      { env: { ...process.env, KB_PATH: kbPath }, stdio: 'pipe' }
+    );
+    throw new Error('should have exited non-zero');
+  } catch (e) {
+    status = e.status;
+  }
+  assert.ok(status !== 0, '--limit=0 must exit non-zero');
+});
+
+test('--help prints usage', () => {
+  const out = execFileSync(
+    'node',
+    [path.join(__dirname, 'kb-search.js'), '--help'],
+    { encoding: 'utf-8' }
+  );
+  assert.ok(out.includes('Usage:'), 'help output must include "Usage:"');
+  assert.ok(out.includes('search'), 'help output must mention the search command');
+  assert.ok(out.includes('--limit'), 'help output must document --limit');
+});
+
 // Cleanup
 try {
   fs.rmSync(TMP, { recursive: true, force: true });

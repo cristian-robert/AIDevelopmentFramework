@@ -255,9 +255,38 @@ function stats() {
   console.log(lines.join('\n'));
 }
 
+// ─── Help text ────────────────────────────────────────────────────────────────
+
+const HELP_TEXT = [
+  'Usage: kb-search <command> [args] [flags]',
+  '',
+  'Commands:',
+  '  index                 Build (or rebuild) the search index',
+  '  search <query>        Search the wiki; prints JSON results',
+  '  stats                 Print KB statistics (article counts, tags)',
+  '',
+  'Flags (for `search`):',
+  '  --type=<T>            Restrict to articles with frontmatter type=T',
+  '  --tag=<T>             Restrict to articles tagged with T',
+  '  --limit=<N>           Return at most N results (positive integer)',
+  '',
+  'Global flags:',
+  '  --help, -h            Show this help message',
+  '',
+  'Environment:',
+  '  KB_PATH               Path to the KB root (default: .obsidian)',
+].join('\n');
+
 // ─── CLI entry ────────────────────────────────────────────────────────────────
 
 const [, , command, ...rest] = process.argv;
+
+// Top-level --help / -h handler. Handled before the command switch so
+// `kb-search --help` works without needing a subcommand.
+if (command === '--help' || command === '-h' || command === undefined) {
+  console.log(HELP_TEXT);
+  process.exit(command === undefined ? 1 : 0);
+}
 
 switch (command) {
   case 'index': {
@@ -267,14 +296,63 @@ switch (command) {
   }
 
   case 'search': {
+    // Help requested within `search` subcommand
+    if (rest.includes('--help') || rest.includes('-h')) {
+      console.log(HELP_TEXT);
+      process.exit(0);
+    }
+
     const query = rest.find((a) => !a.startsWith('--')) || '';
-    const typeArg = rest.find((a) => a.startsWith('--type='));
-    const tagArg  = rest.find((a) => a.startsWith('--tag='));
+    const typeArg = rest.find((a) => a.startsWith('--type'));
+    const tagArg  = rest.find((a) => a.startsWith('--tag'));
+    const limitArg = rest.find((a) => a.startsWith('--limit'));
     const opts = {};
-    if (typeArg) opts.type = typeArg.split('=')[1];
-    if (tagArg)  opts.tag  = tagArg.split('=')[1];
+
+    // Validate --type: must be in --type=VALUE form with a non-empty VALUE
+    if (typeArg) {
+      const value = typeArg.includes('=') ? typeArg.split('=').slice(1).join('=') : '';
+      if (!value) {
+        console.error('--type requires a value (e.g. --type=feature)');
+        process.exit(2);
+      }
+      opts.type = value;
+    }
+
+    // Validate --tag: same contract as --type
+    if (tagArg) {
+      const value = tagArg.includes('=') ? tagArg.split('=').slice(1).join('=') : '';
+      if (!value) {
+        console.error('--tag requires a value (e.g. --tag=auth)');
+        process.exit(2);
+      }
+      opts.tag = value;
+    }
+
+    // Validate --limit: positive integer
+    let limit = null;
+    if (limitArg) {
+      const raw = limitArg.includes('=') ? limitArg.split('=').slice(1).join('=') : '';
+      limit = Number(raw);
+      if (!Number.isInteger(limit) || limit <= 0) {
+        console.error('--limit requires a positive integer (e.g. --limit=10)');
+        process.exit(2);
+      }
+    }
+
+    // Reject empty queries: previously returned `{results:[],total:0}` silently,
+    // which masked shell-quoting bugs in callers (e.g. `kb-search search ""`).
+    // Exit 2 with a stderr message so scripts can detect the misuse.
+    const queryTerms = tokenize(query);
+    if (!queryTerms.length) {
+      console.error('Empty query: provide one or more search terms');
+      process.exit(2);
+    }
 
     const result = search(query, opts);
+    if (limit !== null) {
+      result.results = result.results.slice(0, limit);
+      // Keep `total` as the full match count so callers know how many were trimmed.
+    }
     console.log(JSON.stringify(result, null, 2));
     break;
   }
@@ -285,9 +363,8 @@ switch (command) {
   }
 
   default: {
-    console.error(
-      'Usage: kb-search <index|search|stats> [query] [--type=X] [--tag=X]'
-    );
+    console.error('Unknown command: ' + command);
+    console.error(HELP_TEXT);
     process.exit(1);
   }
 }

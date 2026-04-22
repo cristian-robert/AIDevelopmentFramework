@@ -77,24 +77,37 @@ function cleanupTmpDir(tmpDir) {
 
 function detectTechStack() {
   var detected = [];
-  try {
-    var pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
-    var deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
-    if (deps['next']) detected.push('Next.js');
-    if (deps['react']) detected.push('React');
-    if (deps['vue']) detected.push('Vue');
-    if (deps['svelte'] || deps['@sveltejs/kit']) detected.push('Svelte');
-    if (deps['express']) detected.push('Express');
-    if (deps['@nestjs/core']) detected.push('NestJS');
-    if (deps['expo']) detected.push('Expo');
-    if (deps['@supabase/supabase-js']) detected.push('Supabase');
-    if (deps['tailwindcss']) detected.push('Tailwind');
-    if (deps['stripe']) detected.push('Stripe');
-    if (deps['prisma'] || deps['@prisma/client']) detected.push('Prisma');
-    if (deps['drizzle-orm']) detected.push('Drizzle');
-    if (deps['mongoose']) detected.push('MongoDB/Mongoose');
-  } catch (e) {
-    // No package.json or parse error
+  // Guard package.json access so detection never crashes the installer on
+  // projects without package.json (Python, Go, Rust) and emits an actionable
+  // warning on malformed JSON instead of silently swallowing the error.
+  if (fs.existsSync('package.json')) {
+    var raw = null;
+    try {
+      raw = fs.readFileSync('package.json', 'utf-8');
+    } catch (readErr) {
+      console.warn('Warning: package.json exists but could not be read: ' + readErr.message);
+    }
+    if (raw !== null) {
+      try {
+        var pkg = JSON.parse(raw);
+        var deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
+        if (deps['next']) detected.push('Next.js');
+        if (deps['react']) detected.push('React');
+        if (deps['vue']) detected.push('Vue');
+        if (deps['svelte'] || deps['@sveltejs/kit']) detected.push('Svelte');
+        if (deps['express']) detected.push('Express');
+        if (deps['@nestjs/core']) detected.push('NestJS');
+        if (deps['expo']) detected.push('Expo');
+        if (deps['@supabase/supabase-js']) detected.push('Supabase');
+        if (deps['tailwindcss']) detected.push('Tailwind');
+        if (deps['stripe']) detected.push('Stripe');
+        if (deps['prisma'] || deps['@prisma/client']) detected.push('Prisma');
+        if (deps['drizzle-orm']) detected.push('Drizzle');
+        if (deps['mongoose']) detected.push('MongoDB/Mongoose');
+      } catch (parseErr) {
+        console.warn('Warning: package.json is malformed; skipping tech-stack detection (' + parseErr.message + ')');
+      }
+    }
   }
 
   if (fs.existsSync('requirements.txt') || fs.existsSync('pyproject.toml')) {
@@ -119,12 +132,17 @@ function detectTechStack() {
   return detected;
 }
 
-// Get version from a package.json file, returns null if not found
+// Get version from a package.json file, returns null if not found.
+// Distinguishes "missing" from "malformed" so malformed files produce a warning
+// (easier to diagnose) without crashing the installer.
 function getVersion(dir) {
+  var pkgPath = path.join(dir, 'package.json');
+  if (!fs.existsSync(pkgPath)) return null;
   try {
-    var pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
+    var pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
     return pkg.version || null;
   } catch (e) {
+    console.warn('Warning: could not parse ' + pkgPath + ' (' + e.message + ')');
     return null;
   }
 }
