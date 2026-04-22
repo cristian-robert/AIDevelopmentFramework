@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const readline = require('readline');
 const { toProjectRelative } = require('./protected-files');
@@ -8,15 +10,30 @@ const REPO = 'cristian-robert/AIDevelopmentFramework';
 const BRANCH = 'main';
 const TARBALL_URL = 'https://github.com/' + REPO + '/archive/refs/heads/' + BRANCH + '.tar.gz';
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+// Lazy-init readline so requiring this module for tests doesn't open stdin.
+var _rl = null;
+function getRl() {
+  if (!_rl) {
+    _rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+  }
+  return _rl;
+}
 
 function ask(question) {
+  var rl = getRl();
   return new Promise(function (resolve) {
     rl.question(question, resolve);
   });
+}
+
+// Collision-resistant temp path (UUID-based). Replaces Date.now() which
+// collided when two CLI runs started in the same millisecond.
+function __test_tmpPath(prefix) {
+  var p = prefix || 'ai-framework-';
+  return path.join(os.tmpdir(), p + crypto.randomUUID());
 }
 
 function copyFileSimple(srcPath, destPath) {
@@ -126,9 +143,18 @@ function backupAndCopy(sourceDir, targetDir, projectRoot) {
       var srcPath = path.join(src, entry.name);
       var destPath = path.join(dest, entry.name);
 
+      // Refuse to follow symlinks. A malicious or accidental symlink in the
+      // source tree (e.g. inside an extracted tarball) could otherwise cause
+      // us to traverse into /etc, $HOME, or other directories outside the
+      // intended scope. Dirent.isSymbolicLink() reports the link itself
+      // without following it — no extra lstat needed.
+      if (entry.isSymbolicLink()) {
+        continue;
+      }
+
       if (entry.isDirectory()) {
         copy(srcPath, destPath);
-      } else {
+      } else if (entry.isFile()) {
         var destExists = fs.existsSync(destPath);
 
         if (destExists) {
@@ -156,6 +182,7 @@ function backupAndCopy(sourceDir, targetDir, projectRoot) {
           stats.created++;
         }
       }
+      // Skip special files (sockets, devices, FIFOs) silently.
     }
   }
 
@@ -201,8 +228,9 @@ async function main() {
   // Get previous version before overwriting
   var previousVersion = getVersion(targetDir);
 
-  // Download framework to temp dir
-  var tmpDir = path.join(require('os').tmpdir(), 'ai-framework-' + Date.now());
+  // Download framework to temp dir. UUID-based to avoid collisions between
+  // parallel CLI runs (Date.now() has millisecond granularity).
+  var tmpDir = __test_tmpPath('ai-framework-');
   fs.mkdirSync(tmpDir, { recursive: true });
 
   var sourceDir = null;
@@ -217,7 +245,7 @@ async function main() {
     } else {
       console.error('No framework source available. Check your internet connection.');
       cleanupTmpDir(tmpDir);
-      rl.close();
+      getRl().close();
       process.exit(1);
     }
   }
@@ -238,19 +266,40 @@ async function main() {
     targetDir
   );
 
-  // Install CLAUDE.md with backup
+  // Install CLAUDE.md with backup. Wrapped in try/catch: if the copy fails
+  // after we've created a fresh .backup, we must restore the backup so the
+  // user is not left with a deleted/mangled CLAUDE.md and a backup they
+  // didn't know was just created.
   var claudeMdSource = path.join(sourceDir, 'CLAUDE.md');
   if (fs.existsSync(claudeMdSource)) {
     var claudeMdDest = path.join(targetDir, 'CLAUDE.md');
     if (fs.existsSync(claudeMdDest)) {
       var claudeMdBackup = claudeMdDest + '.backup';
+      var createdBackupThisRun = false;
       if (!fs.existsSync(claudeMdBackup)) {
         fs.copyFileSync(claudeMdDest, claudeMdBackup);
-        stats.backedUp++;
-        stats.backedUpFiles.push('CLAUDE.md');
+        createdBackupThisRun = true;
       }
-      fs.copyFileSync(claudeMdSource, claudeMdDest);
-      stats.updated++;
+      try {
+        fs.copyFileSync(claudeMdSource, claudeMdDest);
+        if (createdBackupThisRun) {
+          stats.backedUp++;
+          stats.backedUpFiles.push('CLAUDE.md');
+        }
+        stats.updated++;
+      } catch (copyErr) {
+        // Rollback: if we created the backup on this run, restore it and
+        // discard the backup file so the user's state is unchanged.
+        if (createdBackupThisRun) {
+          try {
+            fs.copyFileSync(claudeMdBackup, claudeMdDest);
+            fs.unlinkSync(claudeMdBackup);
+          } catch (rollbackErr) {
+            // Best-effort rollback; surface the original error anyway.
+          }
+        }
+        throw copyErr;
+      }
     } else {
       copyFileSimple(claudeMdSource, claudeMdDest);
       stats.created++;
@@ -326,7 +375,9 @@ async function main() {
     createInitMeta(targetDir, previousVersion, newVersion, stats.backedUpFiles);
   }
 
-  // Init git if needed
+  // Init git if needed. When the user explicitly opts in, a failure is fatal —
+  // silently continuing would leave them with a non-git project while the
+  // framework's workflow (branch naming, /ship, /evolve) assumes git works.
   if (!hasGit) {
     console.log('');
     var initGit = await ask('No git repo found. Initialize one? (yes/no): ');
@@ -336,7 +387,11 @@ async function main() {
         execFileSync('git', ['branch', '-m', 'main']);
         console.log('Git repository initialized.');
       } catch (e) {
-        console.log('Could not initialize git: ' + e.message);
+        console.error('Could not initialize git: ' + e.message);
+        console.error('You explicitly opted in to git init, but it failed. Aborting.');
+        cleanupTmpDir(tmpDir);
+        getRl().close();
+        process.exit(1);
       }
     }
   }
@@ -375,10 +430,21 @@ async function main() {
   }
 
   cleanupTmpDir(tmpDir);
-  rl.close();
+  getRl().close();
 }
 
-main().catch(function (err) {
-  console.error('Error: ' + err.message);
-  process.exit(1);
-});
+// Export for tests and other CLI entry points. Only run main() when invoked
+// directly (`node cli/init.js`), NOT when required from a test file — which
+// would otherwise install the framework against the tester's cwd.
+module.exports = {
+  backupAndCopy: backupAndCopy,
+  __test_tmpPath: __test_tmpPath,
+  main: main,
+};
+
+if (require.main === module) {
+  main().catch(function (err) {
+    console.error('Error: ' + err.message);
+    process.exit(1);
+  });
+}

@@ -4,7 +4,12 @@ const command = process.argv[2];
 
 switch (command) {
   case 'init':
-    require('./init.js');
+    // init.js only runs main() when invoked directly (to keep requiring it
+    // from tests side-effect-free). Call the exported main() explicitly.
+    require('./init.js').main().catch(function (err) {
+      console.error('Error: ' + err.message);
+      process.exit(1);
+    });
     break;
   case 'update':
     require('./update.js');

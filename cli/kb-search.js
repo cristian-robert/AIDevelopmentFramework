@@ -129,8 +129,26 @@ function buildIndex() {
   const index = { built: new Date().toISOString(), docs, idf };
 
   fs.mkdirSync(SEARCH_DIR, { recursive: true });
-  fs.writeFileSync(INDEX_FILE, JSON.stringify(index, null, 2));
+  writeIndex(index);
   return index;
+}
+
+// Atomic index write: write to a sibling .tmp file, then rename. rename(2)
+// is atomic on POSIX and on Windows (when target is on the same volume), so
+// concurrent readers always see either the old or new index — never a
+// partially-written file. Prevents JSON parse failures when two CLI runs
+// race to rebuild the index.
+function writeIndex(index) {
+  const tmp = INDEX_FILE + '.tmp';
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(index, null, 2), 'utf-8');
+    fs.renameSync(tmp, INDEX_FILE);
+  } catch (e) {
+    // On failure, clean up the tmp file so it doesn't linger and confuse
+    // future runs or our own hardening tests.
+    try { fs.unlinkSync(tmp); } catch (_) {}
+    throw e;
+  }
 }
 
 function loadIndex() {
@@ -147,6 +165,12 @@ function loadIndex() {
     try {
       index = JSON.parse(fs.readFileSync(INDEX_FILE, 'utf-8'));
     } catch (e) {
+      // Corrupted index (truncated JSON from a crashed write, manual edit,
+      // disk full, etc). Delete it before rebuilding — previously a corrupt
+      // file would silently loop through buildIndex() which overwrites it,
+      // but only if SEARCH_DIR existed and writes succeeded. Explicit delete
+      // makes the recovery behavior obvious and guards against repeat corruption.
+      try { fs.unlinkSync(INDEX_FILE); } catch (_) {}
       return buildIndex();
     }
     if (anyNewer || wikiFiles.length !== index.docs.length) return buildIndex();

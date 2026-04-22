@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const readline = require('readline');
 const { toProjectRelative } = require('./protected-files');
@@ -53,9 +55,15 @@ function backupAndCopy(sourceDir, targetDir, projectRoot) {
       var srcPath = path.join(src, entry.name);
       var destPath = path.join(dest, entry.name);
 
+      // Refuse to traverse symlinks — a malicious or accidental link could
+      // otherwise redirect copy/backup into the user's home directory.
+      if (entry.isSymbolicLink()) {
+        continue;
+      }
+
       if (entry.isDirectory()) {
         copy(srcPath, destPath);
-      } else {
+      } else if (entry.isFile()) {
         var destExists = fs.existsSync(destPath);
 
         if (destExists) {
@@ -81,6 +89,7 @@ function backupAndCopy(sourceDir, targetDir, projectRoot) {
           stats.created++;
         }
       }
+      // Skip special files silently.
     }
   }
 
@@ -118,7 +127,9 @@ async function main() {
   var projectRoot = process.cwd();
   var previousVersion = getVersion(projectRoot);
 
-  var tmpDir = path.join(require('os').tmpdir(), 'ai-framework-update-' + Date.now());
+  // UUID-based tmp dir — avoids collisions when two update runs start in the
+  // same millisecond (Date.now() has millisecond granularity).
+  var tmpDir = path.join(os.tmpdir(), 'ai-framework-update-' + crypto.randomUUID());
   fs.mkdirSync(tmpDir, { recursive: true });
 
   console.log('Downloading latest framework from GitHub...');
@@ -132,13 +143,16 @@ async function main() {
     downloaded = true;
   } catch (dlErr) {
     console.error('Download failed: ' + dlErr.message);
+    // Clean up the partially-populated tmpDir before falling back. Otherwise
+    // a half-extracted tarball could pollute future runs or confuse callers
+    // that probe the same directory.
+    cleanupTmpDir(tmpDir);
     var fallback = getLocalFallbackDir();
     if (fallback) {
       console.log('Using local package as fallback...');
       sourceDir = fallback;
     } else {
       console.error('No framework source available. Check your internet connection.');
-      cleanupTmpDir(tmpDir);
       rl.close();
       process.exit(1);
     }

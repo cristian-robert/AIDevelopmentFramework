@@ -29,7 +29,8 @@
     "kb:stats": "node cli/kb-search.js stats",
     "test:kb": "node cli/kb-search.test.js && node cli/kb-integration.test.js",
     "test:init": "node cli/init-backup.test.js",
-    "test": "node cli/kb-search.test.js && node cli/kb-integration.test.js && node cli/init-backup.test.js"
+    "test:cli": "node cli/cli-hardening.test.js",
+    "test": "node cli/kb-search.test.js && node cli/kb-integration.test.js && node cli/init-backup.test.js && node cli/cli-hardening.test.js"
   },
   "engines": {
     "node": ">=18"
