@@ -46,12 +46,14 @@ git branch --show-current
 
 Check CLAUDE.md for a `## Knowledge Base` section with a `Path:` value (e.g., `.obsidian/`). If configured and the directory exists:
 
-1. **Read the wiki index:** `<kb-path>/wiki/_index.md` — this gives an overview of all knowledge available
+1. **Read the lean index first:** `<kb-path>/_search/lean-index.json` — metadata-only view (title, type, tags, 1-line summary per article). This is a fraction the size of the full TF-IDF index and gives a fast "what do we have" scan without loading article bodies. If `lean-index.json` is missing, run `KB_PATH=<kb-path> node cli/lean-index.js` to generate it, or fall back to reading `<kb-path>/wiki/_index.md`.
 2. **Search for task-relevant knowledge:** Run `KB_PATH=<kb-path> node cli/kb-search.js search "<task keywords>"` where task keywords come from the current issue title, branch name, or user description
 3. **Load top results:** Read the top 3-5 matching wiki articles in full using the Read tool
 4. **Check for feature articles:** If working on a specific issue, also search: `KB_PATH=<kb-path> node cli/kb-search.js search "#<issue-number>" --type=feature`
 
 If no knowledge base configured, skip this section entirely.
+
+_Note: a full lean-loading rewrite of this step is planned for a later task; for now the lean index is a preview — use it to decide which articles to load fully via search._
 
 ## Output Format
 

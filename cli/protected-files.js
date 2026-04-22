@@ -46,6 +46,15 @@ var NEEDS_RESTORE = [
   '.obsidian/raw',
 ];
 
+// Framework-shipped CLI files that init.js and update.js must copy into
+// the target project alongside the .claude/ tree. Listing them here gives
+// a single source of truth so adding a new CLI tool (e.g. cli/lean-index.js)
+// only requires touching this catalog plus the install/update copy loops.
+var FRAMEWORK_CLI_FILES = [
+  'cli/kb-search.js',
+  'cli/lean-index.js',
+];
+
 // Helper: normalize a path to project-root-relative format.
 function toProjectRelative(filePath, rootDir) {
   var path = require('path');
@@ -57,5 +66,6 @@ function toProjectRelative(filePath, rootDir) {
 module.exports = {
   NEEDS_MERGE: NEEDS_MERGE,
   NEEDS_RESTORE: NEEDS_RESTORE,
+  FRAMEWORK_CLI_FILES: FRAMEWORK_CLI_FILES,
   toProjectRelative: toProjectRelative,
 };

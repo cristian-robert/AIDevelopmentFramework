@@ -4,7 +4,7 @@ const os = require('os');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const readline = require('readline');
-const { toProjectRelative } = require('./protected-files');
+const { toProjectRelative, FRAMEWORK_CLI_FILES } = require('./protected-files');
 const { copyClaudeMdWithBackup } = require('./claude-md-copy');
 
 const REPO = 'cristian-robert/AIDevelopmentFramework';
@@ -330,25 +330,31 @@ async function main() {
     }
   }
 
-  // Install cli/kb-search.js (knowledge base search tool)
-  var kbSearchSource = path.join(sourceDir, 'cli', 'kb-search.js');
-  if (fs.existsSync(kbSearchSource)) {
-    var cliDir = path.join(targetDir, 'cli');
-    if (!fs.existsSync(cliDir)) {
-      fs.mkdirSync(cliDir, { recursive: true });
+  // Install framework CLI tools (kb-search.js, lean-index.js, etc). The
+  // catalog lives in protected-files.js so adding a new tool only requires
+  // updating one list. Each file gets the same backup-before-overwrite
+  // treatment as the .claude/ tree.
+  for (var fi = 0; fi < FRAMEWORK_CLI_FILES.length; fi++) {
+    var relCliFile = FRAMEWORK_CLI_FILES[fi];
+    var cliFileSource = path.join(sourceDir, relCliFile);
+    if (!fs.existsSync(cliFileSource)) continue;
+
+    var cliFileDest = path.join(targetDir, relCliFile);
+    var cliFileDestDir = path.dirname(cliFileDest);
+    if (!fs.existsSync(cliFileDestDir)) {
+      fs.mkdirSync(cliFileDestDir, { recursive: true });
     }
-    var kbSearchDest = path.join(cliDir, 'kb-search.js');
-    var kbSearchExisted = fs.existsSync(kbSearchDest);
-    if (kbSearchExisted) {
-      var kbSearchBackup = kbSearchDest + '.backup';
-      if (!fs.existsSync(kbSearchBackup)) {
-        fs.copyFileSync(kbSearchDest, kbSearchBackup);
+    var cliFileExisted = fs.existsSync(cliFileDest);
+    if (cliFileExisted) {
+      var cliFileBackup = cliFileDest + '.backup';
+      if (!fs.existsSync(cliFileBackup)) {
+        fs.copyFileSync(cliFileDest, cliFileBackup);
         stats.backedUp++;
-        stats.backedUpFiles.push(toProjectRelative(kbSearchDest, targetDir));
+        stats.backedUpFiles.push(toProjectRelative(cliFileDest, targetDir));
       }
     }
-    fs.copyFileSync(kbSearchSource, kbSearchDest);
-    if (kbSearchExisted) {
+    fs.copyFileSync(cliFileSource, cliFileDest);
+    if (cliFileExisted) {
       stats.updated++;
     } else {
       stats.created++;
@@ -404,6 +410,7 @@ async function main() {
   console.log('  .claude/references/  7 templates');
   console.log('  .claude/hooks/       5 guardrails');
   console.log('  cli/kb-search.js     knowledge base search tool');
+  console.log('  cli/lean-index.js    knowledge base lean (metadata-only) index');
   console.log('  docs/                methodology + guides');
   console.log('');
 

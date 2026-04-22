@@ -34,3 +34,11 @@ When editing or creating KB wiki articles, follow this order:
 - [ ] `_tags.md` reflects any new or removed tags
 - [ ] No broken wikilinks (all `[[references]]` point to existing files)
 - [ ] Search index rebuilt after all changes
+
+## Karpathy Workflow Checklist
+
+Karpathy-style KB maintenance treats the wiki as a living artifact: raw sources flow in, compile into wiki articles, get lint-passed for consistency, and expose a lean metadata view for cheap context loading. After a maintenance session, confirm:
+
+- [ ] raw → compile loop exercised (new/updated raw sources turned into wiki stubs, stubs expanded into full articles)
+- [ ] Health-check lint pass run (inconsistencies, missing data, orphan concepts — see `/kb compile` Step 7d)
+- [ ] Lean-index rebuilt after changes (`KB_PATH=<kb-path> node cli/lean-index.js` — auto-triggered by `/kb compile`'s index step, but run manually after out-of-band edits)

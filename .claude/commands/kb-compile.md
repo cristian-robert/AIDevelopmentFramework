@@ -239,6 +239,21 @@ Sort tags alphabetically. Sort articles within each tag by title.
 KB_PATH=<kb-path> node cli/kb-search.js index
 ```
 
+`kb-search.js index` also rebuilds `<kb-path>/_search/lean-index.json` — the metadata-only view used by `/prime`. Confirm both files exist after this step. If you need to rebuild just the lean index (e.g. after a quick edit that only changed titles/tags/summaries), run:
+
+```bash
+KB_PATH=<kb-path> node cli/lean-index.js
+```
+
+### Step 7d: Health Check (Karpathy lint pass)
+
+After the mechanical index rebuild, run an LLM-assisted content audit — this is the Karpathy-style lint pass that catches issues the structural checks in Step 6 cannot. Work through each sub-step and report findings before editing:
+
+1. **Inconsistent data across articles** — scan compiled articles for conflicting facts (e.g., two articles give different values for the same constant, different descriptions of the same pattern). Flag the pair and the specific disagreement.
+2. **Missing data imputation** — for concepts referenced but underspecified, use web search (or the existing `/kb ingest`/WebSearch tools) to fetch authoritative data and propose an update diff. Do not silently edit — show the user.
+3. **Orphan-concept → new article candidates** — list concepts mentioned in 3+ articles without their own wiki page (beyond what Step 5 created). Propose new stub titles.
+4. **Report first, edit after approval** — print all findings to the user. Wait for explicit approval per item before applying edits. Do not batch-apply.
+
 ### Step 8: Update Manifest
 
 For each source that was successfully woven into a compiled article, update its row in `<KB_PATH>/raw/_manifest.md`:

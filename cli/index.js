@@ -16,6 +16,15 @@ switch (command) {
     // from tests side-effect-free). Call the exported main() explicitly.
     require('./update.js').main();
     break;
+  case 'lean-index': {
+    // Expose the lean-index builder as a top-level subcommand. Same
+    // side-effect-free import pattern: lean-index.js only builds when
+    // invoked as __main__, so calling buildLeanIndex() here is explicit.
+    const { buildLeanIndex } = require('./lean-index.js');
+    const idx = buildLeanIndex();
+    console.log('Lean-indexed ' + idx.docs.length + ' articles');
+    break;
+  }
   case '--version':
   case '-v':
     console.log(require('../package.json').version);
@@ -36,6 +45,7 @@ AIDevelopmentFramework — The system around the AI that makes the AI reliable.
 Usage:
   npx ai-development-framework init          Download and set up the framework in the current project
   npx ai-development-framework update        Update framework files to the latest version
+  npx ai-development-framework lean-index    Rebuild the lean (metadata-only) KB index
   npx ai-development-framework --version     Show version
   npx ai-development-framework --help        Show this help message
 
@@ -44,7 +54,7 @@ Knowledge base tools (run from your project after install):
 
 ${kbHelp}
 
-  node cli/lean-index.js                                          (coming soon) lean context index builder
+  node cli/lean-index.js [build|print]                            Build or print the lean (metadata-only) index
 
 Docs: https://github.com/cristian-robert/AIDevelopmentFramework
     `);

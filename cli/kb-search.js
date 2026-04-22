@@ -130,6 +130,18 @@ function buildIndex() {
 
   fs.mkdirSync(SEARCH_DIR, { recursive: true });
   writeIndex(index);
+
+  // Keep the lean index in lockstep with the full index. A missing or stale
+  // lean index would force /prime to fall back to the heavy wiki scan, which
+  // defeats the whole point of shipping the lean companion. Failures here
+  // shouldn't break the main index build — warn and continue.
+  try {
+    const { buildLeanIndex } = require('./lean-index.js');
+    buildLeanIndex();
+  } catch (e) {
+    console.warn(`Warning: lean-index build failed: ${e.message}`);
+  }
+
   return index;
 }
 
@@ -261,9 +273,10 @@ const HELP_TEXT = [
   'Usage: kb-search <command> [args] [flags]',
   '',
   'Commands:',
-  '  index                 Build (or rebuild) the search index',
+  '  index                 Build (or rebuild) the search index (and lean index)',
   '  search <query>        Search the wiki; prints JSON results',
   '  stats                 Print KB statistics (article counts, tags)',
+  '  lean                  Print the lean (metadata-only) index as JSON',
   '',
   'Flags (for `search`):',
   '  --type=<T>            Restrict to articles with frontmatter type=T',
@@ -364,6 +377,16 @@ if (require.main === module) {
 
     case 'stats': {
       stats();
+      break;
+    }
+
+    case 'lean': {
+      // Print the lean index. Building via the lean-index module keeps the
+      // write path in a single place (atomic .tmp + rename) and guarantees
+      // the file on disk matches what we just printed.
+      const { buildLeanIndex } = require('./lean-index.js');
+      const idx = buildLeanIndex();
+      console.log(JSON.stringify(idx, null, 2));
       break;
     }
 

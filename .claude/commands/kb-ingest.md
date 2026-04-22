@@ -17,6 +17,14 @@ Ingest a source (URL, file, directory, or session learnings) into the knowledge 
 
 ---
 
+### Ingesting web articles
+
+- **Preferred path:** use the [Obsidian Web Clipper](https://obsidian.md/clipper) browser extension to save a page as `.md` directly into `<kb-path>/raw/articles/`. This preserves layout, alt text, and reliable metadata better than scraping — and the frontmatter it emits already matches this command's conventions.
+- **Related images:** configure a hotkey or userscript in the Clipper to download inline images alongside the `.md` into a sibling directory (e.g. `<kb-path>/raw/articles/_assets/<slug>/`). Keeping images local lets the LLM reference them by relative path and survives source-site link rot.
+- After clipping, run `/kb ingest <path-to-clipped-file>` so the manifest and stub are created the same way as a URL ingest. The command will detect the existing file and skip re-fetching.
+
+---
+
 ## Process
 
 ### Step 1: Detect KB Path
