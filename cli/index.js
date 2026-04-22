@@ -12,7 +12,9 @@ switch (command) {
     });
     break;
   case 'update':
-    require('./update.js');
+    // update.js only runs main() when invoked directly (to keep requiring it
+    // from tests side-effect-free). Call the exported main() explicitly.
+    require('./update.js').main();
     break;
   case '--version':
   case '-v':

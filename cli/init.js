@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const readline = require('readline');
 const { toProjectRelative } = require('./protected-files');
+const { copyClaudeMdWithBackup } = require('./claude-md-copy');
 
 const REPO = 'cristian-robert/AIDevelopmentFramework';
 const BRANCH = 'main';
@@ -266,44 +267,16 @@ async function main() {
     targetDir
   );
 
-  // Install CLAUDE.md with backup. Wrapped in try/catch: if the copy fails
-  // after we've created a fresh .backup, we must restore the backup so the
-  // user is not left with a deleted/mangled CLAUDE.md and a backup they
-  // didn't know was just created.
+  // Install CLAUDE.md with backup + rollback on failure. See
+  // cli/claude-md-copy.js for the rollback semantics.
   var claudeMdSource = path.join(sourceDir, 'CLAUDE.md');
-  if (fs.existsSync(claudeMdSource)) {
-    var claudeMdDest = path.join(targetDir, 'CLAUDE.md');
-    if (fs.existsSync(claudeMdDest)) {
-      var claudeMdBackup = claudeMdDest + '.backup';
-      var createdBackupThisRun = false;
-      if (!fs.existsSync(claudeMdBackup)) {
-        fs.copyFileSync(claudeMdDest, claudeMdBackup);
-        createdBackupThisRun = true;
-      }
-      try {
-        fs.copyFileSync(claudeMdSource, claudeMdDest);
-        if (createdBackupThisRun) {
-          stats.backedUp++;
-          stats.backedUpFiles.push('CLAUDE.md');
-        }
-        stats.updated++;
-      } catch (copyErr) {
-        // Rollback: if we created the backup on this run, restore it and
-        // discard the backup file so the user's state is unchanged.
-        if (createdBackupThisRun) {
-          try {
-            fs.copyFileSync(claudeMdBackup, claudeMdDest);
-            fs.unlinkSync(claudeMdBackup);
-          } catch (rollbackErr) {
-            // Best-effort rollback; surface the original error anyway.
-          }
-        }
-        throw copyErr;
-      }
-    } else {
-      copyFileSimple(claudeMdSource, claudeMdDest);
-      stats.created++;
-    }
+  var claudeMdDest = path.join(targetDir, 'CLAUDE.md');
+  var claudeMdDelta = copyClaudeMdWithBackup(claudeMdSource, claudeMdDest);
+  stats.created += claudeMdDelta.created;
+  stats.updated += claudeMdDelta.updated;
+  stats.backedUp += claudeMdDelta.backedUp;
+  for (var bi = 0; bi < claudeMdDelta.backedUpFiles.length; bi++) {
+    stats.backedUpFiles.push(claudeMdDelta.backedUpFiles[bi]);
   }
 
   // Install docs/ (methodology guides only, not project-specific plans)

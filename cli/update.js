@@ -5,15 +5,29 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const readline = require('readline');
 const { toProjectRelative } = require('./protected-files');
+const { copyClaudeMdWithBackup } = require('./claude-md-copy');
 
 const REPO = 'cristian-robert/AIDevelopmentFramework';
 const BRANCH = 'main';
 const TARBALL_URL = 'https://github.com/' + REPO + '/archive/refs/heads/' + BRANCH + '.tar.gz';
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+// Lazy-init readline so requiring this module for tests doesn't open stdin.
+var _rl = null;
+function getRl() {
+  if (!_rl) {
+    _rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+  }
+  return _rl;
+}
+function closeRl() {
+  if (_rl) {
+    _rl.close();
+    _rl = null;
+  }
+}
 
 function cleanupTmpDir(tmpDir) {
   try {
@@ -153,7 +167,7 @@ async function main() {
       sourceDir = fallback;
     } else {
       console.error('No framework source available. Check your internet connection.');
-      rl.close();
+      closeRl();
       process.exit(1);
     }
   }
@@ -174,24 +188,16 @@ async function main() {
       projectRoot
     );
 
-    // Update CLAUDE.md with backup
+    // Update CLAUDE.md with backup + rollback on failure. See
+    // cli/claude-md-copy.js for the rollback semantics.
     var claudeMdSource = path.join(sourceDir, 'CLAUDE.md');
-    if (fs.existsSync(claudeMdSource)) {
-      var claudeMdDest = path.join(projectRoot, 'CLAUDE.md');
-      if (fs.existsSync(claudeMdDest)) {
-        var backupPath = claudeMdDest + '.backup';
-        if (!fs.existsSync(backupPath)) {
-          fs.copyFileSync(claudeMdDest, backupPath);
-          stats.backedUp++;
-          stats.backedUpFiles.push('CLAUDE.md');
-        }
-        fs.copyFileSync(claudeMdSource, claudeMdDest);
-        stats.updated++;
-      } else {
-        // No existing CLAUDE.md — just copy
-        fs.copyFileSync(claudeMdSource, claudeMdDest);
-        stats.created++;
-      }
+    var claudeMdDest = path.join(projectRoot, 'CLAUDE.md');
+    var claudeMdDelta = copyClaudeMdWithBackup(claudeMdSource, claudeMdDest);
+    stats.created += claudeMdDelta.created;
+    stats.updated += claudeMdDelta.updated;
+    stats.backedUp += claudeMdDelta.backedUp;
+    for (var bi = 0; bi < claudeMdDelta.backedUpFiles.length; bi++) {
+      stats.backedUpFiles.push(claudeMdDelta.backedUpFiles[bi]);
     }
 
     // Update docs (but not docs/plans/ or docs/superpowers/)
@@ -281,4 +287,14 @@ async function main() {
   }
 }
 
-main();
+// Export for tests and other CLI entry points. Only run main() when invoked
+// directly (`node cli/update.js`), NOT when required from a test file — which
+// would otherwise run the full update against the tester's cwd.
+module.exports = {
+  backupAndCopy: backupAndCopy,
+  main: main,
+};
+
+if (require.main === module) {
+  main();
+}

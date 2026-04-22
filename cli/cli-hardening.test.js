@@ -113,6 +113,108 @@ test('tmpDir does not collide across runs', () => {
   assert.notStrictEqual(p1, p2, 'tmp paths must differ across calls');
 });
 
+test('init.js and update.js export main() function', () => {
+  delete require.cache[require.resolve('./init.js')];
+  delete require.cache[require.resolve('./update.js')];
+  const initMod = require('./init.js');
+  const updateMod = require('./update.js');
+  assert.strictEqual(
+    typeof initMod.main,
+    'function',
+    'init.js must export main() — cli/index.js depends on it'
+  );
+  assert.strictEqual(
+    typeof updateMod.main,
+    'function',
+    'update.js must export main() — cli/index.js depends on it'
+  );
+});
+
+test('copyClaudeMdWithBackup restores original on copy failure (fresh backup)', () => {
+  const dir = path.join(TMP, 'claude-md-rollback-fresh');
+  fs.mkdirSync(dir, { recursive: true });
+  const sourcePath = path.join(dir, 'source.md');
+  const destPath = path.join(dir, 'CLAUDE.md');
+  const backupPath = destPath + '.backup';
+
+  fs.writeFileSync(sourcePath, 'NEW CONTENT');
+  fs.writeFileSync(destPath, 'ORIGINAL USER CONTENT');
+
+  delete require.cache[require.resolve('./claude-md-copy.js')];
+  const { copyClaudeMdWithBackup } = require('./claude-md-copy.js');
+
+  // Stub fs.copyFileSync to succeed on backup (dest->backup) but fail on
+  // the source->dest copy (the second call).
+  const realCopy = fs.copyFileSync;
+  let callCount = 0;
+  fs.copyFileSync = function (src, dst) {
+    callCount++;
+    if (callCount === 2) {
+      throw new Error('simulated copy failure');
+    }
+    return realCopy(src, dst);
+  };
+
+  let threw = null;
+  try {
+    copyClaudeMdWithBackup(sourcePath, destPath);
+  } catch (e) {
+    threw = e;
+  } finally {
+    fs.copyFileSync = realCopy;
+  }
+
+  assert.ok(threw, 'helper must rethrow the copy error');
+  assert.strictEqual(threw.message, 'simulated copy failure');
+  assert.strictEqual(
+    fs.readFileSync(destPath, 'utf-8'),
+    'ORIGINAL USER CONTENT',
+    'original CLAUDE.md must be restored after failure'
+  );
+  assert.ok(
+    !fs.existsSync(backupPath),
+    'fresh backup must be cleaned up after rollback'
+  );
+});
+
+test('copyClaudeMdWithBackup preserves pre-existing backup on failure', () => {
+  const dir = path.join(TMP, 'claude-md-rollback-preexisting');
+  fs.mkdirSync(dir, { recursive: true });
+  const sourcePath = path.join(dir, 'source.md');
+  const destPath = path.join(dir, 'CLAUDE.md');
+  const backupPath = destPath + '.backup';
+
+  fs.writeFileSync(sourcePath, 'NEW CONTENT');
+  fs.writeFileSync(destPath, 'ORIGINAL USER CONTENT');
+  fs.writeFileSync(backupPath, 'PRE-EXISTING USER BACKUP');
+
+  delete require.cache[require.resolve('./claude-md-copy.js')];
+  const { copyClaudeMdWithBackup } = require('./claude-md-copy.js');
+
+  // Stub fs.copyFileSync to fail on the very first call (no fresh backup
+  // was needed, since one already exists — the only copy is source->dest).
+  const realCopy = fs.copyFileSync;
+  fs.copyFileSync = function () {
+    throw new Error('simulated copy failure');
+  };
+
+  let threw = null;
+  try {
+    copyClaudeMdWithBackup(sourcePath, destPath);
+  } catch (e) {
+    threw = e;
+  } finally {
+    fs.copyFileSync = realCopy;
+  }
+
+  assert.ok(threw, 'helper must rethrow the copy error');
+  assert.strictEqual(
+    fs.readFileSync(backupPath, 'utf-8'),
+    'PRE-EXISTING USER BACKUP',
+    'pre-existing backup must NOT be destroyed by a failed run'
+  );
+});
+
 // Cleanup
 try {
   fs.rmSync(TMP, { recursive: true, force: true });
