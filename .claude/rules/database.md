@@ -15,27 +15,27 @@ globs: ["**/migrations/**", "**/*.sql", "**/schema*", "**/prisma/**", "**/drizzl
 ## Conventions
 
 - Every migration is reversible (include up AND down)
-- Never modify existing migrations — always create new ones
+- Never modify existing migrations — always create a new one
 - Add indexes for frequently queried columns
 - Use foreign key constraints for referential integrity
 - RLS policies on all user-facing tables (Supabase)
+- No SQL string concatenation — parameterized queries or ORM only
+- App connects with a limited-permission DB user — never root
 
-## Security
-
-- No SQL string concatenation — use parameterized queries or ORM exclusively
-- Application must use a limited-permission DB user, not root
-- Database must not be publicly accessible — behind VPC or firewall rule
-- Backups configured and restore procedure has been tested (not just backup)
-- Sensitive fields (PII, credentials, tokens) encrypted at rest
-- RLS policies on all user-facing tables (Supabase)
-
-See full checklist: `.claude/references/security-checklist.md`
-
-## Post-DDL Checklist
+## Checklist
 
 After any schema change:
-- [ ] Run Supabase advisors (`get_advisors`) or equivalent linter
-- [ ] Verify RLS policies still work
-- [ ] Update TypeScript types (`generate_typescript_types` or equivalent)
-- [ ] Update architect-agent knowledge base
-- [ ] Update KB wiki articles for schema changes (if KB configured)
+
+- [ ] Supabase advisors (`get_advisors`) or equivalent linter clean
+- [ ] RLS policies verified to still work
+- [ ] TypeScript types regenerated (`generate_typescript_types` or equivalent)
+- [ ] architect-agent knowledge base updated
+- [ ] KB wiki articles updated for schema changes (if KB configured)
+- [ ] Backup + restore procedure still valid for new schema
+
+## References
+
+Load only when the rule triggers:
+
+- `.claude/references/security-checklist.md` — load for DB infrastructure/security checks (encryption at rest, network isolation, backups)
+- `<kb-path>/wiki/_index.md` — search for existing schema/domain articles before DDL changes

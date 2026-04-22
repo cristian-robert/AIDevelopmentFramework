@@ -9,49 +9,33 @@ globs: ["**/auth/**", "**/authentication/**", "**/login*", "**/register*", "**/s
 
 1. **architect-agent RETRIEVE** — understand current auth/security architecture before changes
 2. **context7 MCP** — verify framework security APIs (passport, bcrypt, helmet, etc.)
-3. **Implement** — follow security checklist from `.claude/references/security-checklist.md`
+3. **Implement** — follow the full checklist in `.claude/references/security-checklist.md`
 4. **architect-agent RECORD** — update knowledge base after security-related changes
+5. Run `/validate` (Phase 2.5) and `/ship` (Step 1.7) — both enforce the checklist
 
-## Authentication
+## Conventions
 
-- Passwords hashed with bcrypt or argon2 (minimum 12 rounds for bcrypt)
-- Tokens stored in httpOnly cookies — never localStorage
-- JWT secrets must be random, at least 32 characters, never from tutorials or examples
-- Access tokens expire within 15–60 minutes
-- Refresh token rotation implemented
-- Rate limiting on `/login` and `/register` endpoints
-- Account lockout after repeated authentication failures
-- Sessions invalidated server-side on logout
-- Email verification required before granting access
+- Passwords hashed with bcrypt (≥12 rounds) or argon2 — never plaintext
+- Tokens in httpOnly cookies — never localStorage
+- Every route verifies authentication; every object access verifies authorization
+- Inputs validated with schema validation (Zod, Joi, etc.); no SQL string concatenation
+- Secrets in env vars only — never committed, never in source
+- Error messages never reveal stack traces, file paths, or system internals
+- CORS restricted to specific origins — no wildcard `*` in production
 
-## API Security
+## Checklist
 
-- Every route requires authentication verification — check all endpoints, not just obvious ones
-- Authorization enforced: users can only access their own data
-- All request inputs validated with schema validation (Zod, Joi, etc.)
-- API responses never expose passwords, hashes, or internal fields
-- Error messages must not reveal system internals, stack traces, or file paths
-- Rate limiting on all public-facing endpoints
-- CORS restricted to specific allowed domains — never use wildcard `*`
-- HTTPS enforced, HTTP requests redirected to HTTPS
+- [ ] Full `.claude/references/security-checklist.md` run before `/ship`
+- [ ] `npm audit` shows no critical vulnerabilities
+- [ ] No hardcoded credentials or secrets anywhere in the diff
+- [ ] `.env` absent from git history (`git log -- .env` empty)
+- [ ] Auth + authz verified on every new or modified route
+- [ ] Rate limiting in place on public-facing endpoints
 
-## Code Security
+## References
 
-- No `console.log` statements in production builds
-- Run `npm audit` and resolve all critical vulnerabilities before shipping
-- No hardcoded credentials, API keys, or secrets anywhere in the codebase
-- No SQL string concatenation — use parameterized queries or ORM exclusively
-- All secrets stored in environment variables, never in source code
-- `.env` files must not exist in git history
+Load only when the rule triggers:
 
-## Infrastructure
-
-- SSL certificate installed and valid
-- Server processes must not run as root
-- Only ports 80 and 443 publicly accessible
-- Database not publicly accessible — must be behind VPC or firewall
-
-## Pre-Ship Security Checklist
-
-Before any `/ship` or `/validate`, verify against the full checklist:
-`.claude/references/security-checklist.md`
+- `.claude/references/security-checklist.md` — load for the authoritative pre-ship checklist (auth, API, code, infra)
+- `.claude/references/backend-detail.md` — load for auth/authz implementation detail and logging rules
+- `<kb-path>/wiki/_index.md` — search for existing auth/session/security decision articles before changing behavior

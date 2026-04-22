@@ -36,3 +36,10 @@ When the project's CLAUDE.md has a `## Knowledge Base` section with a `Path:` va
 - Plans are mandatory for L/XL tasks — run `/plan-feature` first
 - Run `/validate` before claiming work is done
 - Run `/evolve` after merging to keep the system improving
+
+## Rule File Budget
+
+- Rule files are indexes, not encyclopedias. Target ≤150 lines, soft cap 200.
+- Detail lives in `.claude/references/*.md` or the wiki (when KB is configured).
+- Every rule file ends with a `## References` block listing `path — when to load`.
+- `/evolve` enforces this — if a rule exceeds 200 lines, /evolve extracts overflow to a reference file on the next run.

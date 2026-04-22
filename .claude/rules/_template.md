@@ -13,11 +13,15 @@ globs: ["<glob pattern for file paths>"]
 
 ## Conventions
 
-- <Convention 1>
-- <Convention 2>
-- <Convention 3>
+- <Highest-leverage conventions only — max 10 bullets>
 
 ## Checklist
 
-- [ ] <Post-implementation check 1>
-- [ ] <Post-implementation check 2>
+- [ ] <Post-implementation checks — max 6 items>
+
+## References
+
+Load only when the rule triggers:
+
+- `path/to/reference.md` — load when <specific condition>
+- `<kb-path>/wiki/<article>.md` — load when <specific condition>
