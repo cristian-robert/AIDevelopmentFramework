@@ -17,10 +17,14 @@
 #   - CLAUDE.md contains a "## Output Compaction" section whose body mentions "off"
 #   - The input contains the literal marker "<!-- no-compact -->" anywhere
 #
-# Awk portability: we DO NOT use gawk-only \y word boundaries. The substitution
-# patterns anchor on the canonical casing used in the compaction spec
-# (.claude/references/output-compaction.md) and rely on BSD-awk-compatible ERE
-# alternation. macOS default awk is BSD awk; Linux default is gawk — both work.
+# Awk portability: we DO NOT use gawk-only \y word boundaries in awk. Awk
+# handles per-line PRESERVATION (code fences, tables, lists, headings,
+# file:line paths). Prose lines are marked with a sentinel prefix and the
+# actual word-boundary-aware strip is done with sed (BSD + GNU sed both
+# support the [[:<:]] / [[:>:]] word-boundary atoms). This avoids matching
+# "I think" inside "Greatly", "Basicallyism", etc. macOS default awk is BSD
+# awk; Linux default is gawk — both work for preservation. BSD sed and
+# recent GNU sed (>=4.8) both accept [[:<:]] and [[:>:]].
 
 set -uo pipefail
 
@@ -91,17 +95,19 @@ if [ "$first_char" = "{" ] && command -v node >/dev/null 2>&1; then
   done
 fi
 
-# --- Compaction awk filter ---------------------------------------------------
-# PRESERVE:
+# --- Compaction filter -------------------------------------------------------
+# Stage 1 (awk): PRESERVE lines pass through untouched; prose lines get a
+# sentinel prefix (\x01PROSE\x01) so stage 2 can tell them apart.
 #   * fenced code blocks (toggle on lines beginning with ```),
 #   * markdown tables (leading |),
 #   * list items (leading -, *, or N.),
 #   * headings (leading #),
 #   * any line containing a file:line pattern (e.g. foo.ts:42).
-# COMPACT prose lines:
-#   * drop hedging phrases with optional trailing comma/space,
+# Stage 2 (sed): on prose-marked lines only,
+#   * drop hedging phrases (word-boundary-anchored, case-insensitive),
 #   * drop redundant politeness ("Great!", etc.) with optional bang,
-#   * collapse runs of spaces, trim leading whitespace.
+#   * collapse runs of spaces, trim leading whitespace,
+#   * remove the sentinel prefix.
 compacted="$(printf '%s' "$text" | awk '
   BEGIN { in_fence = 0 }
   /^```/               { in_fence = !in_fence; print; next }
@@ -110,17 +116,15 @@ compacted="$(printf '%s' "$text" | awk '
   /^[ \t]*([-*]|[0-9]+\.)[ \t]/ { print; next }
   /^#/                  { print; next }
   /[A-Za-z_.\/-]+\.[A-Za-z0-9]+:[0-9]+/ { print; next }
-  {
-    # Strip hedging (two passes for adjacent matches).
-    gsub(/(It seems|I think|I believe|Essentially|Basically|As you can see)[,]?[ ]*/, "")
-    gsub(/(it seems|i think|i believe|essentially|basically|as you can see)[,]?[ ]*/, "")
-    # Strip redundant politeness, optional trailing !
-    gsub(/(Great|Absolutely|Of course|Certainly)!?[ ]*/, "")
-    # Collapse multiple spaces.
-    gsub(/  +/, " ")
-    # Trim leading whitespace (unless it is indentation we missed — rare).
-    sub(/^[ \t]+/, "")
-    print
+  { print "\001PROSE\001" $0 }
+' | sed -E '
+  /^\x01PROSE\x01/ {
+    s/[[:<:]](It seems|I think|I believe|Essentially|Basically|As you can see)[[:>:]][,]?[ ]*//g
+    s/[[:<:]](it seems|i think|i believe|essentially|basically|as you can see)[[:>:]][,]?[ ]*//g
+    s/[[:<:]](Great|Absolutely|Of course|Certainly)[[:>:]]!?[ ]*//g
+    s/  +/ /g
+    s/^\x01PROSE\x01[[:space:]]*/\x01PROSE\x01/
+    s/^\x01PROSE\x01//
   }
 ')"
 
