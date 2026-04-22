@@ -47,3 +47,4 @@ Load only when the rule triggers:
 
 - `.claude/references/code-patterns.md` — load for project-specific component patterns
 - `<kb-path>/wiki/_index.md` — search for existing route/component/feature articles before building
+- `.claude/rules/frontend-antislop.md` — load for every UI change

@@ -28,6 +28,17 @@ Detect what was changed:
 git diff --name-only main...HEAD
 ```
 
+### Visual Pass — Anti-AI-Slop Check
+
+If UI files changed (detect via `git diff --name-only <base>..<head>` matching `.tsx`, `.jsx`, `.vue`, `.css`, `.scss`, `.astro`, `.html`):
+1. Load `.claude/rules/frontend-antislop.md` checklist
+2. Dispatch `tester-agent` with `MODE=antislop`, passing the checklist
+3. tester-agent takes screenshots + cross-checks each item against the rule's Conventions
+4. Flag any match against the catalogue in `.claude/references/frontend-antislop-patterns.md`
+5. Report findings as blockers (must fix before ship) or notes (non-blocking polish)
+
+If no UI files changed, skip this step.
+
 **If frontend files changed:**
 - Dispatch tester-agent with VERIFY queries for affected pages
 - Test at minimum: desktop and mobile viewports
