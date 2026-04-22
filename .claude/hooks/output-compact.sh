@@ -14,7 +14,9 @@
 #
 # Opt-outs (any one bypasses compaction):
 #   - Env var: CLAUDE_OUTPUT_COMPACT=off
-#   - CLAUDE.md contains a "## Output Compaction" section whose body mentions "off"
+#   - CLAUDE.md contains a "## Output Compaction" section whose body has a
+#     "State: off" line (case-insensitive). Only the explicit State: directive
+#     toggles the hook — descriptive prose mentioning "off" does not count.
 #   - The input contains the literal marker "<!-- no-compact -->" anywhere
 #
 # Awk portability: we DO NOT use gawk-only \y word boundaries in awk. Awk
@@ -45,13 +47,16 @@ if [ "${CLAUDE_OUTPUT_COMPACT:-on}" = "off" ]; then
 fi
 
 # --- CLAUDE.md opt-out -------------------------------------------------------
+# Parse the "## Output Compaction" section body for a "State: off" directive.
+# Only an explicit State: line toggles the hook — prose mentioning "off"
+# (e.g. "Set to `off` to disable") must not match.
 if [ -f CLAUDE.md ]; then
   section="$(awk '
     /^## Output Compaction/ { inside=1; next }
     inside && /^## / { exit }
     inside { print }
   ' CLAUDE.md 2>/dev/null || true)"
-  if [ -n "$section" ] && printf '%s' "$section" | grep -qi 'off'; then
+  if [ -n "$section" ] && printf '%s' "$section" | grep -Eqi '^[[:space:]]*State:[[:space:]]*off[[:space:]]*$'; then
     printf '%s' "$input"
     exit 0
   fi

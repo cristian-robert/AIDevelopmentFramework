@@ -131,6 +131,14 @@ Default QA test tools by domain. Override per-project by editing this section.
 - Reference templates in `.claude/references/` are loaded on-demand by commands
 - See `docs/customization.md` for adding custom rules and agents
 
+## Output Compaction
+
+State: on
+
+Controls the `.claude/hooks/output-compact.sh` Stop hook. Set to `off` to disable user-facing output compaction. Does not affect agent-to-agent communication.
+
+Override per-session: `CLAUDE_OUTPUT_COMPACT=off` env var.
+
 ## External Dependencies
 
 Run `/setup` to check what's installed. See `docs/plugin-install-guide.md` for full list.

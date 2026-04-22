@@ -88,3 +88,11 @@ project/
 - Domain rules auto-load from `.claude/rules/` based on file paths
 - Code patterns in `.claude/references/code-patterns.md`
 - See `docs/customization.md` for extending the framework
+
+## Output Compaction
+
+State: on
+
+Controls the `.claude/hooks/output-compact.sh` Stop hook. Set to `off` to disable user-facing output compaction. Does not affect agent-to-agent communication.
+
+Override per-session: `CLAUDE_OUTPUT_COMPACT=off` env var.
