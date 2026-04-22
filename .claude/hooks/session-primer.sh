@@ -2,7 +2,12 @@
 # Hook: Notification (session start)
 # Purpose: Shows quick context on session start
 # Behavior: INFORM
+#
+# The first line below is a compaction-bypass marker read by
+# .claude/hooks/output-compact.sh — primer output is structured context the
+# user needs verbatim, so we never want it compacted.
 
+echo "<!-- no-compact -->"
 echo "=== Session Context ==="
 
 BRANCH=$(git branch --show-current 2>/dev/null)
