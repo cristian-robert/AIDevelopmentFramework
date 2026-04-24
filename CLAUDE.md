@@ -142,3 +142,11 @@ Override per-session: `CLAUDE_OUTPUT_COMPACT=on` (force on) or `CLAUDE_OUTPUT_CO
 ## External Dependencies
 
 Run `/setup` to check what's installed. See `docs/plugin-install-guide.md` for full list.
+
+## Session Learnings
+
+Captured during v0.4 release; full detail in wiki.
+
+- [[adversarial-review-multi-lens]] — per-task + Codex + Opus review layering
+- [[subagent-driven-execution]] — 3-4x cost, catches tactical + integration issues
+- [[default-on-hooks-opt-in]] — automation that mutates user output ships opt-in

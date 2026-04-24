@@ -1,0 +1,41 @@
+{
+  "generated": "2026-04-24T21:57:22.683Z",
+  "docs": [
+    {
+      "file": "adversarial-review-multi-lens.md",
+      "title": "\"Adversarial Review: Multi-Lens Layering\"",
+      "type": "session-learning",
+      "tags": [
+        "adversarial-review",
+        "code-review",
+        "quality-gates"
+      ],
+      "summary": "Per-task spec/code-quality reviewers, post-batch Codex review, and post-batch Opus review caught different defect classes in v0.4 — tactical, integration, an..."
+    },
+    {
+      "file": "default-on-hooks-opt-in.md",
+      "title": "\"Default-On Hooks Require Explicit Opt-In\"",
+      "type": "session-learning",
+      "tags": [
+        "hooks",
+        "defaults",
+        "consent",
+        "enforcement",
+        "configuration"
+      ],
+      "summary": "Three architectural defects in v0.4 shared a root cause: automation that mutates user-facing state shipped without explicit consent or determinism guarantees."
+    },
+    {
+      "file": "subagent-driven-execution.md",
+      "title": "\"Subagent-Driven Execution: Cost Model and Fit\"",
+      "type": "session-learning",
+      "tags": [
+        "subagent",
+        "execution",
+        "cost-model",
+        "superpowers"
+      ],
+      "summary": "`superpowers:subagent-driven-development` runs ~3 subagents per task (implementer + spec reviewer + code quality reviewer), scaling to roughly 3-4× naive sin..."
+    }
+  ]
+}
