@@ -24,10 +24,29 @@ Reduce user-facing assistant output tokens while preserving all semantic meaning
 - Security/warning text
 - Anything marked with HTML comment `<!-- no-compact -->` — the entire output is passed through unchanged if this marker appears anywhere in it
 
-## Opt-out mechanisms
+## Opt-in (default is OFF)
 
-- Set env var `CLAUDE_OUTPUT_COMPACT=off` to disable compaction for the current shell/session.
-- Add a `## Output Compaction` section to `CLAUDE.md` with a body line containing `off` (case-insensitive) to disable at the project level.
+The hook is **opt-in**. It runs compaction only when an explicit signal is present:
+
+- Env var `CLAUDE_OUTPUT_COMPACT=on` (per-session opt-in), OR
+- `## Output Compaction` section in `CLAUDE.md` containing the directive `State: on` (project-level opt-in)
+
+Anything else — no section, missing `State` line, `State: off`, or env unset — leaves output untouched.
+
+### Why opt-in
+
+The hedge word-list is Anglocentric. It will strip tokens like "I think", "Basically", "Of course" from prose lines outside fenced code, inline backticks, and lists. That's fine for English-only summaries, but risks dropping legitimate words inside:
+
+- Quoted speech ("She said, 'I think the build is fine.'")
+- Numeric prose where a stripped word changes parsing
+- Non-English content where the heuristic doesn't apply
+- Technical writing where "essentially" / "basically" carry meaning
+
+Read this whole file before flipping `State: on`. If you only want a one-off bypass, use `<!-- no-compact -->` instead of disabling the hook.
+
+## Per-session escape hatches
+
+- Set env var `CLAUDE_OUTPUT_COMPACT=off` to force OFF even if the project opted in.
 - Emit `<!-- no-compact -->` anywhere in the output to bypass on a per-message basis.
 
 ## Implementation

@@ -46,7 +46,11 @@ Category-specific execution:
 - **Agents (architect/tester/mobile-tester)** — restore from backup verbatim
 - **KB content** — restore from backup verbatim
 - **Hooks** — diff old vs new; user-edited → prompt; unchanged → discard
-- **Settings (`.claude/settings.local.json`)** — **conservative**: present full JSON diff and ask `keep user / keep framework / manual edit`. Do NOT attempt automatic deep merge (array ordering matters, especially for hooks). If user picks manual edit, open both files side-by-side.
+- **Settings (`.claude/settings.local.json`)** — **deep-merge with `cli/merge-settings.js`**:
+  1. Run `node cli/merge-settings.js --dry-run --user .claude/settings.local.json.backup --framework .claude/settings.local.json` (or analogous paths for the user/framework copies). The script unions hook arrays by `(matcher, type, command)` tuple, unions `permissions.allow`/`deny`, and lets user values win on scalar conflicts. Show the resulting JSON to the user as the merge plan.
+  2. On approval, run the same command with `--apply` instead of `--dry-run` (it writes atomically: tmp file + rename).
+  3. The "keep user / keep framework / manual edit" chooser is no longer used for the hooks/permissions case — it dropped one side or the other and broke setups in practice. Use the deep-merge.
+  4. If the user wants to skip the deep-merge for some reason (e.g. they want to discard the framework's new hook entirely), they can still hand-edit the file after the merge runs — `--apply` is reversible from the `.backup`.
 
 ### Step 5: Cleanup
 

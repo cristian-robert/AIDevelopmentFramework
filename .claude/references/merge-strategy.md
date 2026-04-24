@@ -15,7 +15,7 @@ Canonical reference for merging project-specific configuration with framework fi
 | Agents — test patterns | `.claude/agents/tester-agent/**`, `mobile-tester-agent/**` | Always restore from backup |
 | KB content | `<kb-path>/**` | Always restore from backup |
 | Hooks | `.claude/hooks/*.sh` | User-edited → prompt; unchanged → discard |
-| Settings | `.claude/settings.local.json` | **Conservative: present JSON diff and ask "keep user / keep framework / manual edit". Do NOT auto deep-merge** — array order matters (especially for hooks) and silent merges risk breaking behavior. User chooses explicitly. |
+| Settings | `.claude/settings.local.json` | **Deep-merge** via `cli/merge-settings.js`. Hook arrays union by `(matcher, type, command)` tuple — user entries preserved, framework entries added if missing, exact duplicates deduped. `permissions.allow` / `deny` arrays union-sorted-deduped. Other top-level keys: user value wins on scalar conflicts. Run `--dry-run` first to show the plan, then `--apply` on approval. |
 
 ## Process
 
@@ -33,10 +33,10 @@ For each `.backup` file found:
 
 ## Notes on Settings
 
-The `.claude/settings.local.json` row deserves special care. Automatic deep-merge is tempting but unsafe:
+The `.claude/settings.local.json` deep-merge is implemented in `cli/merge-settings.js`. Specifics:
 
-- Hook arrays have ordering semantics (the first matching hook runs first)
-- Permission arrays can conflict in subtle ways (allow vs deny precedence)
-- Env var overrides may clobber framework defaults unexpectedly
+- **Hooks**: union by `(matcher, type, command)` tuple. User's existing entries are preserved in their original order; framework entries are appended only if not already present. Same matcher with a different command means the user customised one and the framework added a separate hook on the same trigger — both run.
+- **Permissions**: `allow` and `deny` arrays are union-sorted-deduped.
+- **Other top-level keys** (e.g. `enableAllProjectMcpServers`): user value wins on scalar conflicts. Nested objects merge recursively with the same rule.
 
-Prefer a visible three-way choice: **keep user**, **keep framework**, or **manual edit**. If the user chooses manual edit, open both files side-by-side for them.
+Always run with `--dry-run` first to surface the merge plan, then `--apply` on user approval. The script writes atomically (tmp file + rename), so a failed run cannot leave settings.local.json in a corrupt state.

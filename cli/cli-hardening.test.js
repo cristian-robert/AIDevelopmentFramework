@@ -448,53 +448,115 @@ test('spec-reviewer marker lifecycle drives enforce hook outcomes', () => {
     savedMarker = fs.readFileSync(marker, 'utf-8');
   }
 
-  try {
-    // write implementer → enforce must BLOCK (exit 2).
-    execFileSync('bash', [markerHelper, 'write', 'implementer'], { cwd: repoRoot });
+  function runEnforce() {
     let status = 0;
     try {
       execFileSync('bash', [enforce], {
         cwd: repoRoot,
         input: '{"tool":"TodoWrite"}',
+        // Explicitly clear CLAUDE_TRANSCRIPT_PATH to prove the hook does NOT
+        // depend on it (Finding 3: marker-only enforcement).
         env: { ...process.env, CLAUDE_TRANSCRIPT_PATH: '' },
         stdio: 'pipe',
       });
     } catch (e) {
       status = e.status;
     }
-    assert.strictEqual(status, 2, 'enforce hook must block (exit 2) when marker is implementer');
+    return status;
+  }
+
+  try {
+    // Marker absent → enforce must ALLOW (exit 0).
+    try { fs.rmSync(marker, { force: true }); } catch (_) {}
+    assert.strictEqual(runEnforce(), 0, 'marker absent → exit 0');
+
+    // write implementer → enforce must BLOCK (exit 2).
+    execFileSync('bash', [markerHelper, 'write', 'implementer'], { cwd: repoRoot });
+    assert.strictEqual(runEnforce(), 2, 'implementer:<now> → block');
 
     // write reviewer → enforce must ALLOW (exit 0).
     execFileSync('bash', [markerHelper, 'write', 'reviewer'], { cwd: repoRoot });
-    let allowStatus = 0;
-    try {
-      execFileSync('bash', [enforce], {
-        cwd: repoRoot,
-        input: '{"tool":"TodoWrite"}',
-        env: { ...process.env, CLAUDE_TRANSCRIPT_PATH: '' },
-        stdio: 'pipe',
-      });
-    } catch (e) {
-      allowStatus = e.status;
-    }
-    assert.strictEqual(allowStatus, 0, 'enforce hook must allow (exit 0) when marker is reviewer');
+    assert.strictEqual(runEnforce(), 0, 'reviewer:<now> → allow');
 
-    // clear → enforce falls back to informational warning, exit 0.
+    // clear → enforce must ALLOW (exit 0). No more "informational warning" tier.
     execFileSync('bash', [markerHelper, 'clear'], { cwd: repoRoot });
-    let clearStatus = 0;
-    try {
-      execFileSync('bash', [enforce], {
-        cwd: repoRoot,
-        input: '{"tool":"TodoWrite"}',
-        env: { ...process.env, CLAUDE_TRANSCRIPT_PATH: '' },
-        stdio: 'pipe',
-      });
-    } catch (e) {
-      clearStatus = e.status;
-    }
-    assert.strictEqual(clearStatus, 0, 'enforce hook must not block after clear when no transcript');
+    assert.strictEqual(runEnforce(), 0, 'cleared marker → exit 0');
+
+    // Stale implementer marker (700s old, > 600s window) → exit 0 with warning.
+    const now = Math.floor(Date.now() / 1000);
+    fs.writeFileSync(marker, 'implementer:' + (now - 700));
+    assert.strictEqual(runEnforce(), 0, 'stale implementer (>600s) → allow');
+
+    // Implementer marker 500s old (< 600s window) → still blocks.
+    fs.writeFileSync(marker, 'implementer:' + (now - 500));
+    assert.strictEqual(runEnforce(), 2, 'fresh implementer (<600s) → block');
+
+    // Malformed marker → block with fix-up message.
+    fs.writeFileSync(marker, 'malformed garbage');
+    assert.strictEqual(runEnforce(), 2, 'malformed marker → block');
+
+    // Unknown state → block.
+    fs.writeFileSync(marker, 'orchestrator:' + now);
+    assert.strictEqual(runEnforce(), 2, 'unknown state → block');
+
+    // Empty marker file → allow (treat as absent).
+    fs.writeFileSync(marker, '');
+    assert.strictEqual(runEnforce(), 0, 'empty marker file → allow');
   } finally {
     // Restore any pre-existing marker.
+    if (savedMarker !== null) {
+      fs.writeFileSync(marker, savedMarker);
+    } else {
+      try { fs.rmSync(marker, { force: true }); } catch (_) {}
+    }
+  }
+});
+
+test('spec-reviewer enforce hook does not consult CLAUDE_TRANSCRIPT_PATH', () => {
+  // Finding 3: even when CLAUDE_TRANSCRIPT_PATH points at a transcript that
+  // contains a properly-paired implementer/reviewer dispatch, the marker
+  // file is the ONLY thing that determines the outcome. A stale implementer
+  // marker must still block, regardless of what the transcript says.
+  const repoRoot = path.join(__dirname, '..');
+  const marker = path.join(repoRoot, '.claude', '.last-impl-task');
+  const enforce = path.join(repoRoot, '.claude', 'hooks', 'spec-reviewer-enforce.sh');
+
+  let savedMarker = null;
+  if (fs.existsSync(marker)) {
+    savedMarker = fs.readFileSync(marker, 'utf-8');
+  }
+
+  // Forge a transcript that LOOKS paired — the old hook would have honored
+  // this and exited 0; the new hook must ignore it.
+  const transcriptDir = fs.mkdtempSync(path.join(os.tmpdir(), 'enforce-transcript-'));
+  const transcriptPath = path.join(transcriptDir, 'session.jsonl');
+  fs.writeFileSync(
+    transcriptPath,
+    '[dispatch] role=task-implementer task=1\n' +
+    '[dispatch] role=spec-reviewer task=1\n'
+  );
+
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    fs.writeFileSync(marker, 'implementer:' + now);
+
+    let status = 0;
+    try {
+      execFileSync('bash', [enforce], {
+        cwd: repoRoot,
+        input: '{"tool":"TodoWrite"}',
+        env: { ...process.env, CLAUDE_TRANSCRIPT_PATH: transcriptPath },
+        stdio: 'pipe',
+      });
+    } catch (e) {
+      status = e.status;
+    }
+    assert.strictEqual(
+      status, 2,
+      'transcript pairing must NOT override marker — marker is the single source of truth'
+    );
+  } finally {
+    try { fs.rmSync(transcriptDir, { recursive: true, force: true }); } catch (_) {}
     if (savedMarker !== null) {
       fs.writeFileSync(marker, savedMarker);
     } else {

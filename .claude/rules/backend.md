@@ -24,6 +24,16 @@ globs: ["**/backend/**", "**/server/**", "**/api/**", "**/*.controller.*", "**/*
 - No hardcoded secrets — env vars only
 - Authentication verified on every route; authorization on every object access
 
+## Security (critical — full list in `.claude/references/backend-detail.md`)
+
+These five items are the most-frequently-missed defaults. The full backend security checklist (token storage, refresh rotation, rate limiting, lockouts, CORS, audit, etc.) lives in `backend-detail.md` and `security-checklist.md` — load those when touching auth, sessions, or any public endpoint.
+
+- Passwords hashed with bcrypt/argon2 (min 12 rounds) — never plaintext
+- Tokens in httpOnly cookies — never localStorage
+- Input validation on every endpoint (DTOs/schemas)
+- CORS restricted to allowlisted domains — never `*`
+- No hardcoded secrets — env vars only
+
 ## Checklist
 
 - [ ] All endpoints authenticated + authorized

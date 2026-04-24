@@ -12,12 +12,20 @@
 #   - If stdin is a TTY (no data piped), exit 0 immediately.
 #   - If piped input is empty, exit 0 silently.
 #
-# Opt-outs (any one bypasses compaction):
+# Default: OFF (opt-in). The hook only runs compaction when:
+#   - CLAUDE.md has a "## Output Compaction" section with "State: on", OR
+#   - Env var CLAUDE_OUTPUT_COMPACT=on is set
+# In all other cases (no section, "State: off", absent state line, no env)
+# the hook passes input through unchanged.
+#
+# Per-session opt-outs (force OFF even when default is ON):
 #   - Env var: CLAUDE_OUTPUT_COMPACT=off
-#   - CLAUDE.md contains a "## Output Compaction" section whose body has a
-#     "State: off" line (case-insensitive). Only the explicit State: directive
-#     toggles the hook — descriptive prose mentioning "off" does not count.
 #   - The input contains the literal marker "<!-- no-compact -->" anywhere
+#
+# Why opt-in: the hedge word-list is Anglocentric and may drop tokens from
+# quoted speech, numeric prose, or non-English content. Users should read
+# .claude/references/output-compaction.md and verify the rules match their
+# expectations before flipping State: on.
 #
 # Awk portability: we DO NOT use gawk-only \y word boundaries in awk. Awk
 # handles per-line PRESERVATION (code fences, tables, lists, headings,
@@ -40,26 +48,40 @@ if [ -z "$input" ]; then
   exit 0
 fi
 
-# --- Env var opt-out ---------------------------------------------------------
-if [ "${CLAUDE_OUTPUT_COMPACT:-on}" = "off" ]; then
-  printf '%s' "$input"
-  exit 0
-fi
-
-# --- CLAUDE.md opt-out -------------------------------------------------------
-# Parse the "## Output Compaction" section body for a "State: off" directive.
-# Only an explicit State: line toggles the hook — prose mentioning "off"
-# (e.g. "Set to `off` to disable") must not match.
+# --- Opt-in resolution -------------------------------------------------------
+# Default is OFF. Compaction only runs when an explicit opt-in is found:
+#   1. Env var CLAUDE_OUTPUT_COMPACT=on, OR
+#   2. CLAUDE.md "## Output Compaction" section with "State: on"
+# CLAUDE_OUTPUT_COMPACT=off forces OFF regardless of section state, so a user
+# can quickly disable per-session even if the project opted in.
+env_state="${CLAUDE_OUTPUT_COMPACT:-}"
+section_state=""
 if [ -f CLAUDE.md ]; then
   section="$(awk '
     /^## Output Compaction/ { inside=1; next }
     inside && /^## / { exit }
     inside { print }
   ' CLAUDE.md 2>/dev/null || true)"
-  if [ -n "$section" ] && printf '%s' "$section" | grep -Eqi '^[[:space:]]*State:[[:space:]]*off[[:space:]]*$'; then
-    printf '%s' "$input"
-    exit 0
+  if [ -n "$section" ]; then
+    if printf '%s' "$section" | grep -Eqi '^[[:space:]]*State:[[:space:]]*on[[:space:]]*$'; then
+      section_state="on"
+    elif printf '%s' "$section" | grep -Eqi '^[[:space:]]*State:[[:space:]]*off[[:space:]]*$'; then
+      section_state="off"
+    fi
   fi
+fi
+
+# Per-session env=off forces OFF, no matter what the section says.
+if [ "$env_state" = "off" ]; then
+  printf '%s' "$input"
+  exit 0
+fi
+
+# Otherwise, require an explicit opt-in. Anything else (no section, no
+# State line, State: off, env unset) → pass-through.
+if [ "$env_state" != "on" ] && [ "$section_state" != "on" ]; then
+  printf '%s' "$input"
+  exit 0
 fi
 
 # --- No-compact marker bypass ------------------------------------------------
@@ -107,7 +129,13 @@ fi
 #   * markdown tables (leading |),
 #   * list items (leading -, *, or N.),
 #   * headings (leading #),
-#   * any line containing a file:line pattern (e.g. foo.ts:42).
+#   * blockquotes (leading >),
+#   * any line containing a file:line pattern (e.g. foo.ts:42),
+#   * any line containing a dispatch marker "[dispatch] role=" — these are
+#     structural coupling tokens consumed by spec-reviewer-enforce.sh and
+#     MUST NOT be rewritten,
+#   * any line containing the literal "[no-compact]" — explicit per-line
+#     bypass marker.
 # Stage 2a (awk): on prose-marked lines, replace inline `...` spans with a
 #   placeholder sentinel (\x02NUM\x02) and append a trailer after \x03 holding
 #   the originals, so stage 2b's word-boundary strip cannot touch backtick
@@ -126,6 +154,9 @@ compacted="$(printf '%s' "$text" | awk '
   /^\|/                 { print; next }
   /^[ \t]*([-*]|[0-9]+\.)[ \t]/ { print; next }
   /^#/                  { print; next }
+  /^[ \t]*>/            { print; next }
+  /\[dispatch\] role=/  { print; next }
+  /\[no-compact\]/      { print; next }
   /[A-Za-z_.\/-]+\.[A-Za-z0-9]+:[0-9]+/ { print; next }
   { print "\001PROSE\001" $0 }
 ' | awk '

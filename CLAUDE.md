@@ -133,11 +133,11 @@ Default QA test tools by domain. Override per-project by editing this section.
 
 ## Output Compaction
 
-State: on
+State: off
 
-Controls the `.claude/hooks/output-compact.sh` Stop hook. Set to `off` to disable user-facing output compaction. Does not affect agent-to-agent communication.
+Controls the `.claude/hooks/output-compact.sh` Stop hook. Defaults to OFF — flip to `on` to enable. Read the rules in `.claude/references/output-compaction.md` first. Does not affect agent-to-agent communication.
 
-Override per-session: `CLAUDE_OUTPUT_COMPACT=off` env var.
+Override per-session: `CLAUDE_OUTPUT_COMPACT=on` (force on) or `CLAUDE_OUTPUT_COMPACT=off` (force off).
 
 ## External Dependencies
 

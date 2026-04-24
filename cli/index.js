@@ -25,6 +25,21 @@ switch (command) {
     console.log('Lean-indexed ' + idx.docs.length + ' articles');
     break;
   }
+  case 'merge-settings': {
+    // Forward all remaining argv to merge-settings.js so its CLI parser
+    // sees flags like --dry-run / --apply / --user / --framework as written.
+    // We require() the script's exec path: when require.main !== module
+    // inside merge-settings.js, only exports load — so to drive its CLI we
+    // spawn it instead.
+    const { spawnSync } = require('child_process');
+    const result = spawnSync(
+      process.execPath,
+      [require.resolve('./merge-settings.js'), ...process.argv.slice(3)],
+      { stdio: 'inherit' }
+    );
+    process.exit(result.status === null ? 1 : result.status);
+    break;
+  }
   case '--version':
   case '-v':
     console.log(require('../package.json').version);
@@ -46,6 +61,7 @@ Usage:
   npx ai-development-framework init          Download and set up the framework in the current project
   npx ai-development-framework update        Update framework files to the latest version
   npx ai-development-framework lean-index    Rebuild the lean (metadata-only) KB index
+  npx ai-development-framework merge-settings  Deep-merge user .claude/settings.local.json with framework version
   npx ai-development-framework --version     Show version
   npx ai-development-framework --help        Show this help message
 

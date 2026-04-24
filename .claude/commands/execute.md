@@ -67,20 +67,25 @@ For each task in the plan, dispatch TWO subagents in sequence:
 5. If REQUEST_CHANGES: return to 3a with reviewer output; do NOT proceed to next task
 6. If PASS: mark task checkbox done; write the reviewer marker (`.claude/hooks/spec-reviewer-marker.sh write reviewer`); proceed
 
-**Marker coupling:** The hook pairs on the literal dispatch markers shown in the Announce lines above (`[dispatch] role=task-implementer task=N` and `[dispatch] role=spec-reviewer task=N`) — changing the marker format breaks enforcement. The substring `[dispatch] role=` is what the hook anchors on; incidental mentions of `task-implementer` or `spec-reviewer` elsewhere (e.g. inside TodoWrite items) are intentionally ignored.
+**Marker coupling:** The literal dispatch markers in the Announce lines (`[dispatch] role=task-implementer task=N` and `[dispatch] role=spec-reviewer task=N`) are structural tokens. The output-compaction Stop hook preserves any line containing `[dispatch] role=` so user-visible compaction never rewrites them (see `.claude/references/hook-ordering.md`). Note: enforcement itself does NOT scan these announcements — the marker file is the single source of truth (see Step 3.5).
 
-**Enforcement:** The PostToolUse hook `.claude/hooks/spec-reviewer-enforce.sh` watches TodoWrite/TaskUpdate completions. If an implementer task is marked completed without a paired reviewer dispatch in the preceding N tool calls, the hook prints a warning to stderr and blocks the next tool call. Override only with explicit user confirmation.
+**Enforcement (marker-only):** The PostToolUse hook `.claude/hooks/spec-reviewer-enforce.sh` reads ONLY the marker file at `.claude/.last-impl-task`. There is no transcript-scanning fallback — the hook's behavior is deterministic across runtimes regardless of whether `CLAUDE_TRANSCRIPT_PATH` is set. Outcomes:
+- Marker absent / empty → allow (no active pair)
+- Marker `implementer:<epoch>` within 600s → BLOCK (exit 2)
+- Marker `implementer:<epoch>` older than 600s → allow with stale warning to stderr
+- Marker `reviewer:<epoch>` → allow (pair complete)
+- Any malformed marker → BLOCK with a fix-up message
 
 ### Step 3.5: Marker File Discipline
 
-To make the enforcement hook reliable across sessions and transcript formats, `/execute` maintains a marker file at `.claude/.last-impl-task`.
+To make the enforcement hook deterministic, `/execute` maintains a marker file at `.claude/.last-impl-task`.
 
 **Format:** `<state>:<epoch>` where `<state>` is one of `implementer` or `reviewer`, and `<epoch>` is the current Unix epoch in seconds (`date +%s`).
 
 - After dispatching a task-implementer (Step 3a), write `implementer:$(date +%s)` via `.claude/hooks/spec-reviewer-marker.sh write implementer`.
 - After a spec-reviewer returns PASS (Step 3b), write `reviewer:$(date +%s)` via `.claude/hooks/spec-reviewer-marker.sh write reviewer`.
-- If the marker's state is `implementer` when the hook fires (Step 3 pairing check), the hook blocks further tool use.
-- **Staleness rule:** if the marker's epoch is older than 3600 seconds (1 hour), the hook treats it as stale and does NOT block (exit 0 with an informational warning). This prevents an interrupted `/execute` session from poisoning an unrelated later session.
+- If the marker's state is `implementer` when the hook fires, the hook blocks further tool use.
+- **Staleness window: 600 seconds (10 minutes).** If the marker's epoch is older than 600s, the hook treats it as stale and does NOT block (exit 0 with an informational warning). The window is intentionally short — long-running subagents rarely exceed it. If a legitimate run does exceed 10 minutes, clear the marker manually with `.claude/hooks/spec-reviewer-marker.sh clear` and retry.
 - The marker file is gitignored; it exists only for the duration of an `/execute` run and is deleted on successful completion (Step 5) via `.claude/hooks/spec-reviewer-marker.sh clear`.
 
 ### Step 4: Validation
@@ -92,7 +97,7 @@ After all tasks are complete:
 
 ### Step 5: Completion Report
 
-Before emitting the report, tear down the marker file so it cannot poison a later unrelated session: run `.claude/hooks/spec-reviewer-marker.sh clear` when `/execute` completes successfully (all tasks passed) or when the run is explicitly aborted. The helper is a no-op if the file is absent. (The enforcement hook also treats markers older than 1 hour as stale, so a missed teardown degrades gracefully.)
+Before emitting the report, tear down the marker file so it cannot poison a later unrelated session: run `.claude/hooks/spec-reviewer-marker.sh clear` when `/execute` completes successfully (all tasks passed) or when the run is explicitly aborted. The helper is a no-op if the file is absent. (The enforcement hook also treats markers older than 10 minutes as stale, so a missed teardown degrades gracefully — but staleness should be the exception, not the norm.)
 
 ```
 === Execution Complete ===

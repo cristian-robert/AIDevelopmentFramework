@@ -13,7 +13,7 @@ When editing or creating KB wiki articles, follow this order:
 2. **Create/update article** — follow frontmatter format from `.claude/references/kb-article-template.md`
 3. **Update backlinks** — add wikilinks in both directions (source article and all referenced articles)
 4. **Update index files** — reflect changes in `wiki/_index.md` and add any new tags to `wiki/_tags.md`
-5. **Rebuild search index** — run `KB_PATH=<kb-path> node cli/kb-search.js index` after changes
+5. **Rebuild KB indexes** — run `KB_PATH=<kb-path> node cli/kb-search.js index` after changes (rebuilds BOTH the TF-IDF `_search/index.json` and the lean `_search/lean-index.json` atomically)
 
 ## Conventions
 
@@ -33,7 +33,7 @@ When editing or creating KB wiki articles, follow this order:
 - [ ] `_index.md` reflects article additions, removals, or title changes
 - [ ] `_tags.md` reflects any new or removed tags
 - [ ] No broken wikilinks (all `[[references]]` point to existing files)
-- [ ] Search index rebuilt after all changes
+- [ ] Both KB indexes rebuilt after changes (`node cli/kb-search.js index` does both — TF-IDF and lean)
 
 ## Karpathy Workflow Checklist
 
@@ -41,4 +41,4 @@ Karpathy-style KB maintenance treats the wiki as a living artifact: raw sources 
 
 - [ ] raw → compile loop exercised (new/updated raw sources turned into wiki stubs, stubs expanded into full articles)
 - [ ] Health-check lint pass run (inconsistencies, missing data, orphan concepts — see `/kb compile` Step 7d)
-- [ ] Lean-index rebuilt after changes (`KB_PATH=<kb-path> node cli/lean-index.js` — auto-triggered by `/kb compile`'s index step, but run manually after out-of-band edits)
+- [ ] Both KB indexes rebuilt after changes — run `KB_PATH=<kb-path> node cli/kb-search.js index` (rebuilds TF-IDF and lean atomically; auto-triggered by `/kb compile`'s index step, run manually after out-of-band edits)

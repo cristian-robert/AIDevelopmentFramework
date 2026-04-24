@@ -41,7 +41,7 @@ For every file in `.claude/rules/` and `CLAUDE.md`:
 3. Agent updates relevant domain files in modules/ and frontend/
 4. Agent updates index.md if new domains were added
 
-After architect-KB updates, if wiki stubs from Step 2 have accumulated, suggest: "Run `/kb compile` to expand session learnings into full articles with cross-links." Then rebuild the search index:
+After architect-KB updates, if wiki stubs from Step 2 have accumulated, suggest: "Run `/kb compile` to expand session learnings into full articles with cross-links." Then rebuild the KB indexes (this single command atomically rebuilds both `_search/index.json` and `_search/lean-index.json` — `/prime` reads the lean one, `/kb search` reads the TF-IDF one, so they must stay in lockstep):
 
 ```bash
 KB_PATH=<kb-path> node cli/kb-search.js index

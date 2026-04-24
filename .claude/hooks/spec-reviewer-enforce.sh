@@ -3,37 +3,39 @@
 # PostToolUse hook watching TodoWrite / TaskUpdate completions.
 #
 # Intent: if a task-implementer dispatch just marked a task completed without
-# a paired spec-reviewer dispatch following it, warn (or block) so the
+# a paired spec-reviewer dispatch following it, block (or warn) so the
 # controller doesn't skip the mandatory review step defined in
 # .claude/commands/execute.md Step 3b.
 #
-# Coupling contract (IMPORTANT):
-#   This hook pairs on literal dispatch markers that /execute's controller
-#   MUST emit verbatim in its announce text:
-#       [dispatch] role=task-implementer task=N
-#       [dispatch] role=spec-reviewer task=N
-#   The awk patterns below anchor on the exact "[dispatch] role=..." prefix
-#   to avoid false negatives from incidental mentions in TodoWrite items
-#   (e.g. a todo saying "mark spec-reviewer review in progress" must NOT
-#   count as a dispatch). If you change the marker format in execute.md,
-#   you MUST update the awk patterns here — otherwise enforcement breaks.
+# DESIGN — marker-only, deterministic (Finding 3 fix):
+#   Earlier versions had three fallback tiers (transcript scan → marker file →
+#   informational warning). That was non-deterministic: the same violation
+#   could block on one tool call and pass on the next depending on whether
+#   CLAUDE_TRANSCRIPT_PATH happened to be set. The transcript branch is gone.
+#   This hook now relies on a single source of truth: the marker file written
+#   by spec-reviewer-marker.sh.
 #
-# Marker file contract:
-#   .claude/.last-impl-task holds "<state>:<epoch>" where state is one of
-#   {implementer, reviewer} and epoch is `date +%s` at write time. Markers
-#   older than STALE_SECS are treated as stale and are non-blocking.
+# Marker file contract (.claude/.last-impl-task):
+#   Marker absent OR file empty                         → exit 0 (no active pair)
+#   "implementer:<epoch>" within STALE_SECS             → exit 2 (block, pair missing)
+#   "implementer:<epoch>" older than STALE_SECS         → exit 0 (stale; warn to stderr)
+#   "reviewer:<epoch>"                                  → exit 0 (pair complete)
+#   any other content (malformed)                       → exit 2 (block, force fix-up)
+#
+# STALE_SECS reduced from 3600s (1h) to 600s (10min) — long-running subagents
+# rarely exceed this. If they do, the operator should clear the marker
+# manually with `.claude/hooks/spec-reviewer-marker.sh clear`. Documented in
+# .claude/commands/execute.md Step 3.5.
 #
 # Robustness:
-#   - Handles empty stdin (used by the Step 5 smoke test) without crashing.
-#   - Handles missing CLAUDE_TRANSCRIPT_PATH by falling back to the
-#     .claude/.last-impl-task marker file, then to a best-effort
-#     informational warning (exit 0) so the user at least sees a reminder.
-#   - Never crashes the harness on unexpected JSON or missing tools.
+#   - Handles empty stdin (used by smoke tests) without crashing.
+#   - Never reads CLAUDE_TRANSCRIPT_PATH; transcript fallback was removed.
+#   - Never crashes the harness on missing tools.
 set -uo pipefail
 
 PROTOCOL_REF=".claude/references/spec-reviewer-protocol.md"
 MARKER_FILE=".claude/.last-impl-task"
-STALE_SECS=3600
+STALE_SECS=600
 
 # Read stdin defensively. `read` would block; `cat` with a guard does not.
 input=""
@@ -46,77 +48,56 @@ if [ -z "${input// /}" ]; then
   exit 0
 fi
 
-check_transcript() {
-  local transcript="$1"
-  [ -z "$transcript" ] && return 1
-  [ ! -r "$transcript" ] && return 1
-
-  # Scan the tail of the transcript for the most recent implementer and
-  # reviewer dispatch markers. We anchor on the canonical literal prefix
-  # "[dispatch] role=..." so that stray mentions of "task-implementer" or
-  # "spec-reviewer" inside TodoWrite items cannot satisfy the pattern.
-  tail -n 80 "$transcript" 2>/dev/null | awk '
-    /\[dispatch\] role=task-implementer/ { impl = NR }
-    /\[dispatch\] role=spec-reviewer/    { rev  = NR }
-    END {
-      if (impl && (!rev || rev < impl)) {
-        exit 2
-      }
-      exit 0
-    }
-  '
-}
-
-transcript="${CLAUDE_TRANSCRIPT_PATH:-}"
-
-if [ -n "$transcript" ] && [ -r "$transcript" ]; then
-  if ! check_transcript "$transcript"; then
-    echo "BLOCK: implementer task completed without spec-reviewer dispatch." >&2
-    echo "See $PROTOCOL_REF — every implementer MUST be paired with a spec-reviewer." >&2
-    exit 2
-  fi
+# Marker absent → no active implementer/reviewer pair → exit 0.
+if [ ! -e "$MARKER_FILE" ]; then
   exit 0
 fi
 
-# Fallback 1: marker file written by /execute itself.
-# Format: "<state>:<epoch>" where state ∈ {implementer, reviewer}.
-# Legacy bare-word form ("implementer" / "reviewer") is still accepted.
-if [ -r "$MARKER_FILE" ]; then
-  marker_raw="$(cat "$MARKER_FILE" 2>/dev/null || true)"
-  marker_state="${marker_raw%%:*}"
-  marker_epoch="${marker_raw#*:}"
-  # If there was no colon, marker_epoch == marker_raw; treat as no timestamp.
-  if [ "$marker_epoch" = "$marker_raw" ]; then
-    marker_epoch=""
-  fi
+# Read marker (best-effort). Truly empty marker file → treat as absent.
+marker_raw="$(cat "$MARKER_FILE" 2>/dev/null || true)"
+if [ -z "${marker_raw// /}" ]; then
+  exit 0
+fi
 
-  # Staleness check: marker older than STALE_SECS → non-blocking.
-  if [ -n "$marker_epoch" ]; then
+# Parse "<state>:<epoch>". A malformed marker (no colon, or unknown state)
+# is a contract violation — block and tell the operator to fix it.
+if [[ "$marker_raw" != *:* ]]; then
+  echo "BLOCK: $MARKER_FILE is malformed: '$marker_raw'" >&2
+  echo "Expected format: <implementer|reviewer>:<epoch>. Run \`.claude/hooks/spec-reviewer-marker.sh clear\` and retry." >&2
+  exit 2
+fi
+
+marker_state="${marker_raw%%:*}"
+marker_epoch="${marker_raw#*:}"
+
+# Validate epoch is a non-negative integer; otherwise the marker is corrupt.
+if ! [[ "$marker_epoch" =~ ^[0-9]+$ ]]; then
+  echo "BLOCK: $MARKER_FILE has invalid epoch: '$marker_epoch'" >&2
+  echo "Run \`.claude/hooks/spec-reviewer-marker.sh clear\` and retry." >&2
+  exit 2
+fi
+
+case "$marker_state" in
+  implementer)
     now="$(date +%s 2>/dev/null || echo 0)"
-    if [ "$now" -gt 0 ] && [ "$marker_epoch" -gt 0 ] 2>/dev/null; then
+    if [ "$now" -gt 0 ] && [ "$marker_epoch" -gt 0 ]; then
       age=$(( now - marker_epoch ))
       if [ "$age" -gt "$STALE_SECS" ]; then
-        echo "NOTE: $MARKER_FILE is stale (age ${age}s > ${STALE_SECS}s); ignoring." >&2
+        echo "NOTE: $MARKER_FILE is stale (age ${age}s > ${STALE_SECS}s); not blocking." >&2
+        echo "      Clear it manually if the prior /execute run was abandoned: .claude/hooks/spec-reviewer-marker.sh clear" >&2
         exit 0
       fi
     fi
-  fi
-
-  case "$marker_state" in
-    implementer)
-      echo "BLOCK: $MARKER_FILE indicates implementer completed without spec-reviewer dispatch." >&2
-      echo "See $PROTOCOL_REF." >&2
-      exit 2
-      ;;
-    reviewer|"")
-      exit 0
-      ;;
-  esac
-fi
-
-# Fallback 2: no transcript, no marker — emit an informational reminder
-# (non-blocking) so the controller is nudged toward the reviewer step.
-echo "NOTE: spec-reviewer-enforce.sh could not locate a session transcript or marker." >&2
-echo "      Remember: every task-implementer must be followed by a spec-reviewer." >&2
-echo "      Protocol: $PROTOCOL_REF" >&2
-exit 0
+    echo "BLOCK: implementer task completed without spec-reviewer dispatch." >&2
+    echo "See $PROTOCOL_REF — every implementer MUST be paired with a spec-reviewer." >&2
+    exit 2
+    ;;
+  reviewer)
+    exit 0
+    ;;
+  *)
+    echo "BLOCK: $MARKER_FILE has unknown state: '$marker_state'" >&2
+    echo "Expected 'implementer' or 'reviewer'. Run \`.claude/hooks/spec-reviewer-marker.sh clear\` and retry." >&2
+    exit 2
+    ;;
+esac

@@ -26,7 +26,7 @@ When the project's CLAUDE.md has a `## Knowledge Base` section with a `Path:` va
 - Search for existing articles to update: `KB_PATH=<path> node cli/kb-search.js search "<feature or area>"`
 - Update existing wiki articles rather than creating duplicates
 - If creating a new article, use the template from `.claude/references/kb-article-template.md`
-- Rebuild the search index: `KB_PATH=<path> node cli/kb-search.js index`
+- Rebuild KB indexes (both TF-IDF and lean) with the single command: `KB_PATH=<path> node cli/kb-search.js index` — this atomically rebuilds `_search/index.json` AND `_search/lean-index.json` so `/prime` (lean reader) and `/kb search` (TF-IDF reader) never see stale state.
 
 **Skip KB** for: trivial changes, typo fixes, config tweaks, dependency bumps.
 

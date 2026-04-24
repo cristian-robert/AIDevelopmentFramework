@@ -2,6 +2,18 @@
 
 This document defines the role, responsibilities, and output format for the **spec-reviewer** subagent dispatched by `/execute` after every task-implementer returns.
 
+## Enforcement model
+
+The PostToolUse hook `.claude/hooks/spec-reviewer-enforce.sh` is the runtime guardrail. It is **marker-only and deterministic** — it reads only the file `.claude/.last-impl-task` written by `.claude/hooks/spec-reviewer-marker.sh`, never the transcript. There is no transcript fallback, no informational-only tier. Every tool call after a TodoWrite/TaskUpdate sees the same outcome for the same marker state:
+
+- Marker absent or empty → allow (no active pair)
+- `implementer:<epoch>` within 600s → BLOCK (pair missing)
+- `implementer:<epoch>` older than 600s → allow with stale warning to stderr
+- `reviewer:<epoch>` → allow (pair complete)
+- Malformed marker → BLOCK with a message telling the operator to clear it
+
+The 600s staleness window is short on purpose — see `.claude/commands/execute.md` Step 3.5.
+
 The reviewer's job is to be the adversarial second pair of eyes: verify the implementer followed the plan spec, and stress-test the approach itself. A single reviewer combines both spec-adherence checking and adversarial review — do not split these roles.
 
 ## Inputs
