@@ -238,21 +238,28 @@ compacted="$(printf '%s' "$text" | awk '
 
 # --- Emit --------------------------------------------------------------------
 if [ "$is_json" = 1 ] && command -v node >/dev/null 2>&1; then
-  # Re-serialize the envelope with the compacted field value. On any failure
-  # fall back to raw compacted text — never emit malformed JSON.
-  rewrapped="$(node -e '
-    let d="";
-    process.stdin.on("data",c=>d+=c);
-    process.stdin.on("end",()=>{
+  # Re-serialize the envelope with the compacted field value. Both the raw
+  # JSON input and the compacted text are passed via stdin (separated by NUL)
+  # so large messages can't hit ARG_MAX and odd characters can't be mangled
+  # by shell quoting. On any failure fall back to raw compacted text —
+  # never emit malformed JSON.
+  rewrapped="$(printf '%s\0%s' "$input" "$compacted" | node -e '
+    const chunks = [];
+    process.stdin.on("data", c => chunks.push(c));
+    process.stdin.on("end", () => {
       try {
-        const j = JSON.parse(d);
+        const d = Buffer.concat(chunks).toString("utf8");
+        const sep = d.indexOf("\0");
+        if (sep === -1) process.exit(1);
+        const raw = d.slice(0, sep);
+        const v = d.slice(sep + 1);
+        const j = JSON.parse(raw);
         const f = process.argv[1];
-        const v = process.argv[2];
         j[f] = v;
         process.stdout.write(JSON.stringify(j));
       } catch (e) { process.exit(1); }
     });
-  ' "$json_field" "$compacted" <<<"$input" 2>/dev/null)" || rewrapped=""
+  ' "$json_field" 2>/dev/null)" || rewrapped=""
   if [ -n "$rewrapped" ]; then
     printf '%s' "$rewrapped"
   else

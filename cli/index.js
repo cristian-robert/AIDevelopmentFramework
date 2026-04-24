@@ -14,7 +14,10 @@ switch (command) {
   case 'update':
     // update.js only runs main() when invoked directly (to keep requiring it
     // from tests side-effect-free). Call the exported main() explicitly.
-    require('./update.js').main();
+    require('./update.js').main().catch(function (err) {
+      console.error('Error: ' + err.message);
+      process.exit(1);
+    });
     break;
   case 'lean-index': {
     // Expose the lean-index builder as a top-level subcommand. Same
