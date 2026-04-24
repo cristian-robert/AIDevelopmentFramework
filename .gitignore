@@ -33,5 +33,8 @@ build/
 # Init/update metadata (temporary, consumed by /start merge)
 .claude/.init-meta.json
 
+# Spec-reviewer enforcement marker (transient, per /execute run)
+.claude/.last-impl-task
+
 # Backup files from init/update (temporary, consumed by /start merge)
 *.backup

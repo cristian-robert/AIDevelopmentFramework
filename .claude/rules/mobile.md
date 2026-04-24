@@ -20,16 +20,30 @@ globs: ["**/mobile/**", "**/native/**", "**/*.native.*", "**/expo/**"]
 
 ## Skill Chain
 
-1. **KB search** (if KB configured) — search for relevant screen/navigation/feature articles before starting
+1. **KB search** (if KB configured) — search for relevant screen/navigation/feature articles
 2. **architect-agent RETRIEVE** — understand screen/navigation structure
 3. **Expo skill** — appropriate skill from table above
 4. **context7 MCP** — verify Expo/React Native API
 5. **mobile-tester-agent VERIFY/FLOW** — verify on simulator after implementation
-6. **KB update** (if KB configured) — update wiki articles for new/changed screens, navigation, or hooks
+6. **KB update** (if KB configured) — update wiki articles for new/changed screens, navigation, hooks
 
 ## Conventions
 
 - Follow Expo Router file-based routing
-- Use platform-specific extensions (`.ios.tsx`, `.android.tsx`) only when necessary
+- Platform-specific extensions (`.ios.tsx`, `.android.tsx`) only when necessary
 - Animations via `react-native-reanimated`
 - Navigation state managed by Expo Router, not manually
+
+## Checklist
+
+- [ ] mobile-tester-agent VERIFY/FLOW run on simulator after UI changes
+- [ ] Platform-specific files justified (no needless `.ios/.android` splits)
+- [ ] Navigation state flows through Expo Router
+- [ ] KB wiki articles updated for new/changed screens or hooks
+
+## References
+
+Load only when the rule triggers:
+
+- `.claude/references/code-patterns.md` — load for project-specific mobile patterns
+- `<kb-path>/wiki/_index.md` — search for existing screen/navigation articles before building

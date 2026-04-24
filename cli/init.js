@@ -1,22 +1,40 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const readline = require('readline');
-const { toProjectRelative } = require('./protected-files');
+const { toProjectRelative, FRAMEWORK_CLI_FILES } = require('./protected-files');
+const { copyClaudeMdWithBackup } = require('./claude-md-copy');
 
 const REPO = 'cristian-robert/AIDevelopmentFramework';
 const BRANCH = 'main';
 const TARBALL_URL = 'https://github.com/' + REPO + '/archive/refs/heads/' + BRANCH + '.tar.gz';
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+// Lazy-init readline so requiring this module for tests doesn't open stdin.
+var _rl = null;
+function getRl() {
+  if (!_rl) {
+    _rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+  }
+  return _rl;
+}
 
 function ask(question) {
+  var rl = getRl();
   return new Promise(function (resolve) {
     rl.question(question, resolve);
   });
+}
+
+// Collision-resistant temp path (UUID-based). Replaces Date.now() which
+// collided when two CLI runs started in the same millisecond.
+function __test_tmpPath(prefix) {
+  var p = prefix || 'ai-framework-';
+  return path.join(os.tmpdir(), p + crypto.randomUUID());
 }
 
 function copyFileSimple(srcPath, destPath) {
@@ -59,24 +77,37 @@ function cleanupTmpDir(tmpDir) {
 
 function detectTechStack() {
   var detected = [];
-  try {
-    var pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
-    var deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
-    if (deps['next']) detected.push('Next.js');
-    if (deps['react']) detected.push('React');
-    if (deps['vue']) detected.push('Vue');
-    if (deps['svelte'] || deps['@sveltejs/kit']) detected.push('Svelte');
-    if (deps['express']) detected.push('Express');
-    if (deps['@nestjs/core']) detected.push('NestJS');
-    if (deps['expo']) detected.push('Expo');
-    if (deps['@supabase/supabase-js']) detected.push('Supabase');
-    if (deps['tailwindcss']) detected.push('Tailwind');
-    if (deps['stripe']) detected.push('Stripe');
-    if (deps['prisma'] || deps['@prisma/client']) detected.push('Prisma');
-    if (deps['drizzle-orm']) detected.push('Drizzle');
-    if (deps['mongoose']) detected.push('MongoDB/Mongoose');
-  } catch (e) {
-    // No package.json or parse error
+  // Guard package.json access so detection never crashes the installer on
+  // projects without package.json (Python, Go, Rust) and emits an actionable
+  // warning on malformed JSON instead of silently swallowing the error.
+  if (fs.existsSync('package.json')) {
+    var raw = null;
+    try {
+      raw = fs.readFileSync('package.json', 'utf-8');
+    } catch (readErr) {
+      console.warn('Warning: package.json exists but could not be read: ' + readErr.message);
+    }
+    if (raw !== null) {
+      try {
+        var pkg = JSON.parse(raw);
+        var deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
+        if (deps['next']) detected.push('Next.js');
+        if (deps['react']) detected.push('React');
+        if (deps['vue']) detected.push('Vue');
+        if (deps['svelte'] || deps['@sveltejs/kit']) detected.push('Svelte');
+        if (deps['express']) detected.push('Express');
+        if (deps['@nestjs/core']) detected.push('NestJS');
+        if (deps['expo']) detected.push('Expo');
+        if (deps['@supabase/supabase-js']) detected.push('Supabase');
+        if (deps['tailwindcss']) detected.push('Tailwind');
+        if (deps['stripe']) detected.push('Stripe');
+        if (deps['prisma'] || deps['@prisma/client']) detected.push('Prisma');
+        if (deps['drizzle-orm']) detected.push('Drizzle');
+        if (deps['mongoose']) detected.push('MongoDB/Mongoose');
+      } catch (parseErr) {
+        console.warn('Warning: package.json is malformed; skipping tech-stack detection (' + parseErr.message + ')');
+      }
+    }
   }
 
   if (fs.existsSync('requirements.txt') || fs.existsSync('pyproject.toml')) {
@@ -101,12 +132,17 @@ function detectTechStack() {
   return detected;
 }
 
-// Get version from a package.json file, returns null if not found
+// Get version from a package.json file, returns null if not found.
+// Distinguishes "missing" from "malformed" so malformed files produce a warning
+// (easier to diagnose) without crashing the installer.
 function getVersion(dir) {
+  var pkgPath = path.join(dir, 'package.json');
+  if (!fs.existsSync(pkgPath)) return null;
   try {
-    var pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
+    var pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
     return pkg.version || null;
   } catch (e) {
+    console.warn('Warning: could not parse ' + pkgPath + ' (' + e.message + ')');
     return null;
   }
 }
@@ -126,9 +162,18 @@ function backupAndCopy(sourceDir, targetDir, projectRoot) {
       var srcPath = path.join(src, entry.name);
       var destPath = path.join(dest, entry.name);
 
+      // Refuse to follow symlinks. A malicious or accidental symlink in the
+      // source tree (e.g. inside an extracted tarball) could otherwise cause
+      // us to traverse into /etc, $HOME, or other directories outside the
+      // intended scope. Dirent.isSymbolicLink() reports the link itself
+      // without following it — no extra lstat needed.
+      if (entry.isSymbolicLink()) {
+        continue;
+      }
+
       if (entry.isDirectory()) {
         copy(srcPath, destPath);
-      } else {
+      } else if (entry.isFile()) {
         var destExists = fs.existsSync(destPath);
 
         if (destExists) {
@@ -156,6 +201,7 @@ function backupAndCopy(sourceDir, targetDir, projectRoot) {
           stats.created++;
         }
       }
+      // Skip special files (sockets, devices, FIFOs) silently.
     }
   }
 
@@ -201,8 +247,9 @@ async function main() {
   // Get previous version before overwriting
   var previousVersion = getVersion(targetDir);
 
-  // Download framework to temp dir
-  var tmpDir = path.join(require('os').tmpdir(), 'ai-framework-' + Date.now());
+  // Download framework to temp dir. UUID-based to avoid collisions between
+  // parallel CLI runs (Date.now() has millisecond granularity).
+  var tmpDir = __test_tmpPath('ai-framework-');
   fs.mkdirSync(tmpDir, { recursive: true });
 
   var sourceDir = null;
@@ -217,7 +264,7 @@ async function main() {
     } else {
       console.error('No framework source available. Check your internet connection.');
       cleanupTmpDir(tmpDir);
-      rl.close();
+      getRl().close();
       process.exit(1);
     }
   }
@@ -238,23 +285,16 @@ async function main() {
     targetDir
   );
 
-  // Install CLAUDE.md with backup
+  // Install CLAUDE.md with backup + rollback on failure. See
+  // cli/claude-md-copy.js for the rollback semantics.
   var claudeMdSource = path.join(sourceDir, 'CLAUDE.md');
-  if (fs.existsSync(claudeMdSource)) {
-    var claudeMdDest = path.join(targetDir, 'CLAUDE.md');
-    if (fs.existsSync(claudeMdDest)) {
-      var claudeMdBackup = claudeMdDest + '.backup';
-      if (!fs.existsSync(claudeMdBackup)) {
-        fs.copyFileSync(claudeMdDest, claudeMdBackup);
-        stats.backedUp++;
-        stats.backedUpFiles.push('CLAUDE.md');
-      }
-      fs.copyFileSync(claudeMdSource, claudeMdDest);
-      stats.updated++;
-    } else {
-      copyFileSimple(claudeMdSource, claudeMdDest);
-      stats.created++;
-    }
+  var claudeMdDest = path.join(targetDir, 'CLAUDE.md');
+  var claudeMdDelta = copyClaudeMdWithBackup(claudeMdSource, claudeMdDest);
+  stats.created += claudeMdDelta.created;
+  stats.updated += claudeMdDelta.updated;
+  stats.backedUp += claudeMdDelta.backedUp;
+  for (var bi = 0; bi < claudeMdDelta.backedUpFiles.length; bi++) {
+    stats.backedUpFiles.push(claudeMdDelta.backedUpFiles[bi]);
   }
 
   // Install docs/ (methodology guides only, not project-specific plans)
@@ -290,25 +330,31 @@ async function main() {
     }
   }
 
-  // Install cli/kb-search.js (knowledge base search tool)
-  var kbSearchSource = path.join(sourceDir, 'cli', 'kb-search.js');
-  if (fs.existsSync(kbSearchSource)) {
-    var cliDir = path.join(targetDir, 'cli');
-    if (!fs.existsSync(cliDir)) {
-      fs.mkdirSync(cliDir, { recursive: true });
+  // Install framework CLI tools (kb-search.js, lean-index.js, etc). The
+  // catalog lives in protected-files.js so adding a new tool only requires
+  // updating one list. Each file gets the same backup-before-overwrite
+  // treatment as the .claude/ tree.
+  for (var fi = 0; fi < FRAMEWORK_CLI_FILES.length; fi++) {
+    var relCliFile = FRAMEWORK_CLI_FILES[fi];
+    var cliFileSource = path.join(sourceDir, relCliFile);
+    if (!fs.existsSync(cliFileSource)) continue;
+
+    var cliFileDest = path.join(targetDir, relCliFile);
+    var cliFileDestDir = path.dirname(cliFileDest);
+    if (!fs.existsSync(cliFileDestDir)) {
+      fs.mkdirSync(cliFileDestDir, { recursive: true });
     }
-    var kbSearchDest = path.join(cliDir, 'kb-search.js');
-    var kbSearchExisted = fs.existsSync(kbSearchDest);
-    if (kbSearchExisted) {
-      var kbSearchBackup = kbSearchDest + '.backup';
-      if (!fs.existsSync(kbSearchBackup)) {
-        fs.copyFileSync(kbSearchDest, kbSearchBackup);
+    var cliFileExisted = fs.existsSync(cliFileDest);
+    if (cliFileExisted) {
+      var cliFileBackup = cliFileDest + '.backup';
+      if (!fs.existsSync(cliFileBackup)) {
+        fs.copyFileSync(cliFileDest, cliFileBackup);
         stats.backedUp++;
-        stats.backedUpFiles.push(toProjectRelative(kbSearchDest, targetDir));
+        stats.backedUpFiles.push(toProjectRelative(cliFileDest, targetDir));
       }
     }
-    fs.copyFileSync(kbSearchSource, kbSearchDest);
-    if (kbSearchExisted) {
+    fs.copyFileSync(cliFileSource, cliFileDest);
+    if (cliFileExisted) {
       stats.updated++;
     } else {
       stats.created++;
@@ -326,7 +372,9 @@ async function main() {
     createInitMeta(targetDir, previousVersion, newVersion, stats.backedUpFiles);
   }
 
-  // Init git if needed
+  // Init git if needed. When the user explicitly opts in, a failure is fatal —
+  // silently continuing would leave them with a non-git project while the
+  // framework's workflow (branch naming, /ship, /evolve) assumes git works.
   if (!hasGit) {
     console.log('');
     var initGit = await ask('No git repo found. Initialize one? (yes/no): ');
@@ -336,7 +384,11 @@ async function main() {
         execFileSync('git', ['branch', '-m', 'main']);
         console.log('Git repository initialized.');
       } catch (e) {
-        console.log('Could not initialize git: ' + e.message);
+        console.error('Could not initialize git: ' + e.message);
+        console.error('You explicitly opted in to git init, but it failed. Aborting.');
+        cleanupTmpDir(tmpDir);
+        getRl().close();
+        process.exit(1);
       }
     }
   }
@@ -358,6 +410,7 @@ async function main() {
   console.log('  .claude/references/  7 templates');
   console.log('  .claude/hooks/       5 guardrails');
   console.log('  cli/kb-search.js     knowledge base search tool');
+  console.log('  cli/lean-index.js    knowledge base lean (metadata-only) index');
   console.log('  docs/                methodology + guides');
   console.log('');
 
@@ -375,10 +428,21 @@ async function main() {
   }
 
   cleanupTmpDir(tmpDir);
-  rl.close();
+  getRl().close();
 }
 
-main().catch(function (err) {
-  console.error('Error: ' + err.message);
-  process.exit(1);
-});
+// Export for tests and other CLI entry points. Only run main() when invoked
+// directly (`node cli/init.js`), NOT when required from a test file — which
+// would otherwise install the framework against the tester's cwd.
+module.exports = {
+  backupAndCopy: backupAndCopy,
+  __test_tmpPath: __test_tmpPath,
+  main: main,
+};
+
+if (require.main === module) {
+  main().catch(function (err) {
+    console.error('Error: ' + err.message);
+    process.exit(1);
+  });
+}

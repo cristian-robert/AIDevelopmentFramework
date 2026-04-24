@@ -1,6 +1,6 @@
 {
   "name": "ai-development-framework",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "The system around the AI that makes the AI reliable. Structured AI-assisted development with the PIV+E loop.",
   "bin": {
     "ai-development-framework": "cli/index.js",
@@ -27,9 +27,12 @@
     "kb:search": "node cli/kb-search.js search",
     "kb:index": "node cli/kb-search.js index",
     "kb:stats": "node cli/kb-search.js stats",
-    "test:kb": "node cli/kb-search.test.js && node cli/kb-integration.test.js",
+    "kb:lean-index": "node cli/lean-index.js",
+    "test:kb": "node cli/kb-search.test.js && node cli/kb-integration.test.js && node cli/lean-index.test.js && node cli/kb-indexes.test.js",
     "test:init": "node cli/init-backup.test.js",
-    "test": "node cli/kb-search.test.js && node cli/kb-integration.test.js && node cli/init-backup.test.js"
+    "test:cli": "node cli/cli-hardening.test.js && node cli/merge-settings.test.js",
+    "test:hooks": "bash cli/hook-compact.test.sh",
+    "test": "node cli/kb-search.test.js && node cli/kb-integration.test.js && node cli/lean-index.test.js && node cli/kb-indexes.test.js && node cli/init-backup.test.js && node cli/cli-hardening.test.js && node cli/merge-settings.test.js && bash cli/hook-compact.test.sh"
   },
   "engines": {
     "node": ">=18"

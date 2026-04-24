@@ -5,60 +5,36 @@ globs: ["**/*.test.*", "**/*.spec.*", "**/test/**", "**/tests/**", "**/__tests__
 
 # Testing Rules
 
-## Test Naming
+## Skill Chain
 
-- Describe behavior, not implementation: `it('returns 404 when user not found')` not `it('tests getUserById')`
-- Group by feature/module with `describe` blocks
+1. Check existing test files for the feature area — prefer adding to existing over creating new
+2. For QA test planning, spawn a test-planning subagent (plans placement, does not write tests)
+3. **Implement** — unit + integration + QA E2E per the matrix in the detail reference
+4. Run tests locally before shipping
 
-## Test Structure
+## Conventions
 
-- **Arrange** — set up test data and dependencies
-- **Act** — call the function/endpoint under test
-- **Assert** — verify the result
+- Name tests by behavior, not implementation (`it('returns 404 when user not found')`)
+- Arrange / Act / Assert structure with visual separation
+- Cover happy path, edge cases, and error cases — skip framework internals
+- Use real DBs for integration tests where possible; mock only external services
+- Never mock the module under test; prefer DI over module mocking
+- QA automation (API/Browser/Mobile E2E) is mandatory after every dev task, not just unit tests
+- Test credentials come from env (`TEST_USER_EMAIL` etc.) — never hardcoded
 
-## What to Test
+## Checklist
 
-- Happy path (expected inputs → expected outputs)
-- Edge cases (empty inputs, boundary values, null/undefined)
-- Error cases (invalid inputs, network failures, permission denied)
-- Do NOT test framework internals or third-party libraries
+- [ ] Tests describe behavior, not implementation
+- [ ] Happy path, edge cases, and error cases covered for new code
+- [ ] No new test file created when one already exists for the feature area
+- [ ] QA E2E tests added/updated per the domain matrix
+- [ ] No hardcoded credentials — reads from env or GitHub secrets
+- [ ] All tests pass locally before shipping
 
-## Mock Policy
+## References
 
-- Use real databases for integration tests where possible
-- Mock external APIs and third-party services
-- Never mock the module under test
-- Prefer dependency injection over module mocking
+Load only when the rule triggers:
 
-## Coverage
-
-- Critical business logic: aim for high coverage
-- UI components: test behavior (clicks, form submissions), not rendering details
-- Don't chase 100% — test what matters
-
-## QA Automation (Mandatory)
-
-After every development task, QA automation tests are mandatory — not just unit tests.
-
-| Domain | QA Test Type | Default Tool | What to test |
-|--------|-------------|-------------|-------------|
-| Backend API | API E2E tests | Supertest/Pactum | Endpoints respond correctly, auth works, error responses match format |
-| Frontend Web | Browser E2E tests | Playwright | User flows, form submissions, navigation, responsive viewports |
-| Mobile | Mobile E2E tests | Detox/Maestro | Screen navigation, gestures, form inputs, platform-specific behavior |
-| Database | Migration tests | Project test runner | Migrations up/down, seed data, constraints hold |
-
-Override defaults in CLAUDE.md `## QA Tools` section.
-
-## QA Test Placement
-
-- NEVER create a new test file without first checking existing test files for the same feature area
-- Prefer adding test cases to existing files over creating new ones
-- One E2E test file per feature area, not per implementation task
-- Spawn a test-planning subagent before writing QA tests to avoid context bloat
-- The subagent scans, plans placement, reports — it does NOT write tests
-
-## Test Users
-
-- Credentials stored as GitHub secrets: `TEST_USER_EMAIL`, `TEST_USER_PASSWORD`, `TEST_ADMIN_EMAIL`, `TEST_ADMIN_PASSWORD`
-- For local development: stored in `.env.test` (gitignored)
-- Never hardcode test credentials in test files — read from environment
+- `.claude/references/testing-detail.md` — load for AAA structure, mock policy detail, QA matrix, placement rules, test users
+- `.claude/references/security-checklist.md` — load for security-sensitive test areas (auth, authz, input validation)
+- `<kb-path>/wiki/_index.md` — search for feature articles to align tests with documented behavior

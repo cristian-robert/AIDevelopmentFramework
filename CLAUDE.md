@@ -92,23 +92,9 @@ Unified LLM knowledge base inspired by [Karpathy's LLM Knowledge Bases](https://
 
 ## Post-Init Merge
 
-When `.claude/.init-meta.json` exists, the framework was recently installed or updated. Files with `.backup` extensions contain the project's previous versions. The `/start` command will detect this and run the merge flow before normal routing.
+When `.claude/.init-meta.json` exists (or `.backup` files are present), run `/merge-configs` to reconcile project-specific content with the new framework files. `/start` Step 0 auto-delegates to `/merge-configs` when the init marker is found.
 
-**Merge rules by file type:**
-
-| File | Strategy |
-|------|----------|
-| `CLAUDE.md` | Merge project-specific sections (Tech Stack, Knowledge Base, Design Skill Preference, QA Tools, custom sections) into new template. Preserve all user-added content. |
-| `.claude/rules/*.md` | Append user-added conventions, checklist items, and skill chain customizations to new framework rules. Don't duplicate entries already in the new version. |
-| `.claude/commands/*.md` | If user modified a command, present diff and ask. Otherwise skip (no merge needed). |
-| `.claude/references/code-patterns.md` | Always restore from backup — entirely project-specific. |
-| `.claude/references/*.md` (other) | Skip — framework templates, no project content. |
-| `.claude/agents/architect-agent/*` | Always restore from backup — project knowledge base. |
-| `.claude/agents/tester-agent/*` | Always restore from backup — project test patterns. |
-| `.claude/agents/mobile-tester-agent/*` | Always restore from backup — project screen patterns. |
-| `.obsidian/**` | Always restore from backup — project wiki and raw sources. |
-
-**Merge process:** For each `.backup` file, read both versions, present a summary of what will be merged, wait for user approval, then apply. Delete `.backup` files and `.init-meta.json` when complete.
+See `.claude/references/merge-strategy.md` for the canonical merge strategy — it is the single source of truth for per-file categorization and merge rules.
 
 ## Code Review Layers
 
@@ -145,6 +131,22 @@ Default QA test tools by domain. Override per-project by editing this section.
 - Reference templates in `.claude/references/` are loaded on-demand by commands
 - See `docs/customization.md` for adding custom rules and agents
 
+## Output Compaction
+
+State: off
+
+Controls the `.claude/hooks/output-compact.sh` Stop hook. Defaults to OFF — flip to `on` to enable. Read the rules in `.claude/references/output-compaction.md` first. Does not affect agent-to-agent communication.
+
+Override per-session: `CLAUDE_OUTPUT_COMPACT=on` (force on) or `CLAUDE_OUTPUT_COMPACT=off` (force off).
+
 ## External Dependencies
 
 Run `/setup` to check what's installed. See `docs/plugin-install-guide.md` for full list.
+
+## Session Learnings
+
+Captured during v0.4 release; full detail in wiki.
+
+- [[adversarial-review-multi-lens]] — per-task + Codex + Opus review layering
+- [[subagent-driven-execution]] — 3-4x cost, catches tactical + integration issues
+- [[default-on-hooks-opt-in]] — automation that mutates user output ships opt-in

@@ -129,8 +129,38 @@ function buildIndex() {
   const index = { built: new Date().toISOString(), docs, idf };
 
   fs.mkdirSync(SEARCH_DIR, { recursive: true });
-  fs.writeFileSync(INDEX_FILE, JSON.stringify(index, null, 2));
+  writeIndex(index);
+
+  // Keep the lean index in lockstep with the full index. A missing or stale
+  // lean index would force /prime to fall back to the heavy wiki scan, which
+  // defeats the whole point of shipping the lean companion. Failures here
+  // shouldn't break the main index build — warn and continue.
+  try {
+    const { buildLeanIndex } = require('./lean-index.js');
+    buildLeanIndex();
+  } catch (e) {
+    console.warn(`Warning: lean-index build failed: ${e.message}`);
+  }
+
   return index;
+}
+
+// Atomic index write: write to a sibling .tmp file, then rename. rename(2)
+// is atomic on POSIX and on Windows (when target is on the same volume), so
+// concurrent readers always see either the old or new index — never a
+// partially-written file. Prevents JSON parse failures when two CLI runs
+// race to rebuild the index.
+function writeIndex(index) {
+  const tmp = INDEX_FILE + '.tmp';
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(index, null, 2), 'utf-8');
+    fs.renameSync(tmp, INDEX_FILE);
+  } catch (e) {
+    // On failure, clean up the tmp file so it doesn't linger and confuse
+    // future runs or our own hardening tests.
+    try { fs.unlinkSync(tmp); } catch (_) {}
+    throw e;
+  }
 }
 
 function loadIndex() {
@@ -147,6 +177,12 @@ function loadIndex() {
     try {
       index = JSON.parse(fs.readFileSync(INDEX_FILE, 'utf-8'));
     } catch (e) {
+      // Corrupted index (truncated JSON from a crashed write, manual edit,
+      // disk full, etc). Delete it before rebuilding — previously a corrupt
+      // file would silently loop through buildIndex() which overwrites it,
+      // but only if SEARCH_DIR existed and writes succeeded. Explicit delete
+      // makes the recovery behavior obvious and guards against repeat corruption.
+      try { fs.unlinkSync(INDEX_FILE); } catch (_) {}
       return buildIndex();
     }
     if (anyNewer || wikiFiles.length !== index.docs.length) return buildIndex();
@@ -231,39 +267,143 @@ function stats() {
   console.log(lines.join('\n'));
 }
 
+// ─── Help text ────────────────────────────────────────────────────────────────
+
+const HELP_TEXT = [
+  'Usage: kb-search <command> [args] [flags]',
+  '',
+  'Commands:',
+  '  index                 Build (or rebuild) the search index (and lean index)',
+  '  search <query>        Search the wiki; prints JSON results',
+  '  stats                 Print KB statistics (article counts, tags)',
+  '  lean                  Print the lean (metadata-only) index as JSON',
+  '',
+  'Flags (for `search`):',
+  '  --type=<T>            Restrict to articles with frontmatter type=T',
+  '  --tag=<T>             Restrict to articles tagged with T',
+  '  --limit=<N>           Return at most N results (positive integer)',
+  '',
+  'Global flags:',
+  '  --help, -h            Show this help message',
+  '',
+  'Environment:',
+  '  KB_PATH               Path to the KB root (default: .obsidian)',
+].join('\n');
+
 // ─── CLI entry ────────────────────────────────────────────────────────────────
 
-const [, , command, ...rest] = process.argv;
+// Only run the CLI block when invoked directly as a script. This keeps
+// `require('./kb-search.js')` side-effect-free so other CLI entry points
+// (e.g. cli/index.js) can import HELP_TEXT without triggering the switch
+// below. Matches the pattern used by init.js and update.js.
+if (require.main === module) {
+  const [, , command, ...rest] = process.argv;
 
-switch (command) {
-  case 'index': {
-    const idx = buildIndex();
-    console.log(`Indexed ${idx.docs.length} articles → ${INDEX_FILE}`);
-    break;
+  // Top-level --help / -h handler. Handled before the command switch so
+  // `kb-search --help` works without needing a subcommand.
+  if (command === '--help' || command === '-h' || command === undefined) {
+    console.log(HELP_TEXT);
+    process.exit(command === undefined ? 1 : 0);
   }
 
-  case 'search': {
-    const query = rest.find((a) => !a.startsWith('--')) || '';
-    const typeArg = rest.find((a) => a.startsWith('--type='));
-    const tagArg  = rest.find((a) => a.startsWith('--tag='));
-    const opts = {};
-    if (typeArg) opts.type = typeArg.split('=')[1];
-    if (tagArg)  opts.tag  = tagArg.split('=')[1];
+  switch (command) {
+    case 'index': {
+      const idx = buildIndex();
+      console.log(`Indexed ${idx.docs.length} articles → ${INDEX_FILE}`);
+      break;
+    }
 
-    const result = search(query, opts);
-    console.log(JSON.stringify(result, null, 2));
-    break;
-  }
+    case 'search': {
+      // Help requested within `search` subcommand
+      if (rest.includes('--help') || rest.includes('-h')) {
+        console.log(HELP_TEXT);
+        process.exit(0);
+      }
 
-  case 'stats': {
-    stats();
-    break;
-  }
+      const query = rest.find((a) => !a.startsWith('--')) || '';
+      const typeArg = rest.find((a) => a.startsWith('--type'));
+      const tagArg  = rest.find((a) => a.startsWith('--tag'));
+      const limitArg = rest.find((a) => a.startsWith('--limit'));
+      const opts = {};
 
-  default: {
-    console.error(
-      'Usage: kb-search <index|search|stats> [query] [--type=X] [--tag=X]'
-    );
-    process.exit(1);
+      // Validate --type: must be in --type=VALUE form with a non-empty VALUE
+      if (typeArg) {
+        const value = typeArg.includes('=') ? typeArg.split('=').slice(1).join('=') : '';
+        if (!value) {
+          console.error('--type requires a value (e.g. --type=feature)');
+          process.exit(2);
+        }
+        opts.type = value;
+      }
+
+      // Validate --tag: same contract as --type
+      if (tagArg) {
+        const value = tagArg.includes('=') ? tagArg.split('=').slice(1).join('=') : '';
+        if (!value) {
+          console.error('--tag requires a value (e.g. --tag=auth)');
+          process.exit(2);
+        }
+        opts.tag = value;
+      }
+
+      // Validate --limit: positive integer
+      let limit = null;
+      if (limitArg) {
+        const raw = limitArg.includes('=') ? limitArg.split('=').slice(1).join('=') : '';
+        limit = Number(raw);
+        if (!Number.isInteger(limit) || limit <= 0) {
+          console.error('--limit requires a positive integer (e.g. --limit=10)');
+          process.exit(2);
+        }
+      }
+
+      // Reject empty queries: previously returned `{results:[],total:0}` silently,
+      // which masked shell-quoting bugs in callers (e.g. `kb-search search ""`).
+      // Exit 2 with a stderr message so scripts can detect the misuse.
+      const queryTerms = tokenize(query);
+      if (!queryTerms.length) {
+        console.error('Empty query: provide one or more search terms');
+        process.exit(2);
+      }
+
+      const result = search(query, opts);
+      if (limit !== null) {
+        result.results = result.results.slice(0, limit);
+        // Keep `total` as the full match count so callers know how many were trimmed.
+      }
+      console.log(JSON.stringify(result, null, 2));
+      break;
+    }
+
+    case 'stats': {
+      stats();
+      break;
+    }
+
+    case 'lean': {
+      // Print the lean index. Building via the lean-index module keeps the
+      // write path in a single place (atomic .tmp + rename) and guarantees
+      // the file on disk matches what we just printed.
+      const { buildLeanIndex } = require('./lean-index.js');
+      const idx = buildLeanIndex();
+      console.log(JSON.stringify(idx, null, 2));
+      break;
+    }
+
+    default: {
+      console.error('Unknown command: ' + command);
+      console.error(HELP_TEXT);
+      process.exit(1);
+    }
   }
 }
+
+// Export HELP_TEXT (and useful internals) so other CLI entry points can
+// reuse them without duplicating strings. Keeping this at the bottom lets
+// the `if (require.main === module)` block stay close to the CLI logic.
+module.exports = {
+  HELP_TEXT,
+  buildIndex,
+  search,
+  stats,
+};

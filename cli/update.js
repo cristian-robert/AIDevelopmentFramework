@@ -1,17 +1,33 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const readline = require('readline');
-const { toProjectRelative } = require('./protected-files');
+const { toProjectRelative, FRAMEWORK_CLI_FILES } = require('./protected-files');
+const { copyClaudeMdWithBackup } = require('./claude-md-copy');
 
 const REPO = 'cristian-robert/AIDevelopmentFramework';
 const BRANCH = 'main';
 const TARBALL_URL = 'https://github.com/' + REPO + '/archive/refs/heads/' + BRANCH + '.tar.gz';
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+// Lazy-init readline so requiring this module for tests doesn't open stdin.
+var _rl = null;
+function getRl() {
+  if (!_rl) {
+    _rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+  }
+  return _rl;
+}
+function closeRl() {
+  if (_rl) {
+    _rl.close();
+    _rl = null;
+  }
+}
 
 function cleanupTmpDir(tmpDir) {
   try {
@@ -53,9 +69,15 @@ function backupAndCopy(sourceDir, targetDir, projectRoot) {
       var srcPath = path.join(src, entry.name);
       var destPath = path.join(dest, entry.name);
 
+      // Refuse to traverse symlinks — a malicious or accidental link could
+      // otherwise redirect copy/backup into the user's home directory.
+      if (entry.isSymbolicLink()) {
+        continue;
+      }
+
       if (entry.isDirectory()) {
         copy(srcPath, destPath);
-      } else {
+      } else if (entry.isFile()) {
         var destExists = fs.existsSync(destPath);
 
         if (destExists) {
@@ -81,6 +103,7 @@ function backupAndCopy(sourceDir, targetDir, projectRoot) {
           stats.created++;
         }
       }
+      // Skip special files silently.
     }
   }
 
@@ -118,7 +141,9 @@ async function main() {
   var projectRoot = process.cwd();
   var previousVersion = getVersion(projectRoot);
 
-  var tmpDir = path.join(require('os').tmpdir(), 'ai-framework-update-' + Date.now());
+  // UUID-based tmp dir — avoids collisions when two update runs start in the
+  // same millisecond (Date.now() has millisecond granularity).
+  var tmpDir = path.join(os.tmpdir(), 'ai-framework-update-' + crypto.randomUUID());
   fs.mkdirSync(tmpDir, { recursive: true });
 
   console.log('Downloading latest framework from GitHub...');
@@ -132,14 +157,17 @@ async function main() {
     downloaded = true;
   } catch (dlErr) {
     console.error('Download failed: ' + dlErr.message);
+    // Clean up the partially-populated tmpDir before falling back. Otherwise
+    // a half-extracted tarball could pollute future runs or confuse callers
+    // that probe the same directory.
+    cleanupTmpDir(tmpDir);
     var fallback = getLocalFallbackDir();
     if (fallback) {
       console.log('Using local package as fallback...');
       sourceDir = fallback;
     } else {
       console.error('No framework source available. Check your internet connection.');
-      cleanupTmpDir(tmpDir);
-      rl.close();
+      closeRl();
       process.exit(1);
     }
   }
@@ -160,24 +188,16 @@ async function main() {
       projectRoot
     );
 
-    // Update CLAUDE.md with backup
+    // Update CLAUDE.md with backup + rollback on failure. See
+    // cli/claude-md-copy.js for the rollback semantics.
     var claudeMdSource = path.join(sourceDir, 'CLAUDE.md');
-    if (fs.existsSync(claudeMdSource)) {
-      var claudeMdDest = path.join(projectRoot, 'CLAUDE.md');
-      if (fs.existsSync(claudeMdDest)) {
-        var backupPath = claudeMdDest + '.backup';
-        if (!fs.existsSync(backupPath)) {
-          fs.copyFileSync(claudeMdDest, backupPath);
-          stats.backedUp++;
-          stats.backedUpFiles.push('CLAUDE.md');
-        }
-        fs.copyFileSync(claudeMdSource, claudeMdDest);
-        stats.updated++;
-      } else {
-        // No existing CLAUDE.md — just copy
-        fs.copyFileSync(claudeMdSource, claudeMdDest);
-        stats.created++;
-      }
+    var claudeMdDest = path.join(projectRoot, 'CLAUDE.md');
+    var claudeMdDelta = copyClaudeMdWithBackup(claudeMdSource, claudeMdDest);
+    stats.created += claudeMdDelta.created;
+    stats.updated += claudeMdDelta.updated;
+    stats.backedUp += claudeMdDelta.backedUp;
+    for (var bi = 0; bi < claudeMdDelta.backedUpFiles.length; bi++) {
+      stats.backedUpFiles.push(claudeMdDelta.backedUpFiles[bi]);
     }
 
     // Update docs (but not docs/plans/ or docs/superpowers/)
@@ -213,25 +233,30 @@ async function main() {
       }
     }
 
-    // Update cli/kb-search.js (knowledge base search tool)
-    var kbSearchSource = path.join(sourceDir, 'cli', 'kb-search.js');
-    if (fs.existsSync(kbSearchSource)) {
-      var cliDir = path.join(projectRoot, 'cli');
-      if (!fs.existsSync(cliDir)) {
-        fs.mkdirSync(cliDir, { recursive: true });
+    // Update framework CLI tools (kb-search.js, lean-index.js, etc). The
+    // catalog in protected-files.js is the single source of truth for which
+    // cli/ files ship with the framework and get backed up on update.
+    for (var fi = 0; fi < FRAMEWORK_CLI_FILES.length; fi++) {
+      var relCliFile = FRAMEWORK_CLI_FILES[fi];
+      var cliFileSource = path.join(sourceDir, relCliFile);
+      if (!fs.existsSync(cliFileSource)) continue;
+
+      var cliFileDest = path.join(projectRoot, relCliFile);
+      var cliFileDestDir = path.dirname(cliFileDest);
+      if (!fs.existsSync(cliFileDestDir)) {
+        fs.mkdirSync(cliFileDestDir, { recursive: true });
       }
-      var kbSearchDest = path.join(cliDir, 'kb-search.js');
-      var kbSearchExisted = fs.existsSync(kbSearchDest);
-      if (kbSearchExisted) {
-        var kbSearchBackup = kbSearchDest + '.backup';
-        if (!fs.existsSync(kbSearchBackup)) {
-          fs.copyFileSync(kbSearchDest, kbSearchBackup);
+      var cliFileExisted = fs.existsSync(cliFileDest);
+      if (cliFileExisted) {
+        var cliFileBackup = cliFileDest + '.backup';
+        if (!fs.existsSync(cliFileBackup)) {
+          fs.copyFileSync(cliFileDest, cliFileBackup);
           stats.backedUp++;
-          stats.backedUpFiles.push(toProjectRelative(kbSearchDest, projectRoot));
+          stats.backedUpFiles.push(toProjectRelative(cliFileDest, projectRoot));
         }
       }
-      fs.copyFileSync(kbSearchSource, kbSearchDest);
-      if (kbSearchExisted) {
+      fs.copyFileSync(cliFileSource, cliFileDest);
+      if (cliFileExisted) {
         stats.updated++;
       } else {
         stats.created++;
@@ -263,8 +288,18 @@ async function main() {
     process.exit(1);
   } finally {
     cleanupTmpDir(tmpDir);
-    rl.close();
+    closeRl();
   }
 }
 
-main();
+// Export for tests and other CLI entry points. Only run main() when invoked
+// directly (`node cli/update.js`), NOT when required from a test file — which
+// would otherwise run the full update against the tester's cwd.
+module.exports = {
+  backupAndCopy: backupAndCopy,
+  main: main,
+};
+
+if (require.main === module) {
+  main();
+}
