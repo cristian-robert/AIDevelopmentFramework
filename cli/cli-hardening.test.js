@@ -340,6 +340,169 @@ test('--help prints usage', () => {
   assert.ok(out.includes('--limit'), 'help output must document --limit');
 });
 
+// ─── update.js teardown: no bare `rl` references after closeRl refactor ─────
+
+test('update.js has no bare rl.close() (uses closeRl helper)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'update.js'), 'utf-8');
+  // Strip comments to avoid matching words in doc strings.
+  const lines = src.split('\n');
+  const bareRlLines = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Skip single-line comments.
+    if (/^\s*\/\//.test(line)) continue;
+    // Match standalone `rl` as an identifier (not `closeRl`, not `_rl`, not
+    // inside words). Negative lookbehind not portable in old JS — use
+    // boundary + explicit exclusions.
+    const re = /(^|[^A-Za-z0-9_])rl(\.[A-Za-z_]|\b)/;
+    const m = line.match(re);
+    if (m) {
+      // Confirm it's not closeRl/getRl/_rl by looking at what's immediately
+      // before the match.
+      const before = line.slice(0, m.index + (m[1] ? m[1].length : 0));
+      if (/[A-Za-z0-9_]$/.test(before)) continue; // part of a longer ident
+      bareRlLines.push((i + 1) + ': ' + line.trim());
+    }
+  }
+  assert.deepStrictEqual(
+    bareRlLines,
+    [],
+    'update.js must not reference bare `rl`; use closeRl() helper instead. Found: ' + bareRlLines.join(' | ')
+  );
+});
+
+test('update.js requires cleanly without throwing (teardown path is safe)', () => {
+  // End-to-end smoke: require the module, then invoke the finally-path helper
+  // directly. closeRl() must exist and be callable with no readline opened.
+  delete require.cache[require.resolve('./update.js')];
+  const out = execFileSync('node', ['-e', "require('./cli/update.js');"], {
+    cwd: path.join(__dirname, '..'),
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  assert.strictEqual(
+    out,
+    '',
+    'requiring update.js must not produce side-effect output, got: ' + out
+  );
+});
+
+// ─── spec-reviewer marker lifecycle (Option B) ──────────────────────────────
+
+test('spec-reviewer-marker.sh writes and clears the marker file', () => {
+  const repoRoot = path.join(__dirname, '..');
+  const marker = path.join(repoRoot, '.claude', '.last-impl-task');
+  const helper = path.join(repoRoot, '.claude', 'hooks', 'spec-reviewer-marker.sh');
+
+  // Ensure starting clean.
+  try { fs.rmSync(marker, { force: true }); } catch (_) {}
+
+  // write implementer
+  execFileSync('bash', [helper, 'write', 'implementer'], { cwd: repoRoot });
+  assert.ok(fs.existsSync(marker), 'marker should exist after write implementer');
+  const impl = fs.readFileSync(marker, 'utf-8');
+  assert.ok(/^implementer:\d+$/.test(impl), 'marker body must be implementer:<epoch>, got: ' + impl);
+
+  // write reviewer (overwrites)
+  execFileSync('bash', [helper, 'write', 'reviewer'], { cwd: repoRoot });
+  const rev = fs.readFileSync(marker, 'utf-8');
+  assert.ok(/^reviewer:\d+$/.test(rev), 'marker body must be reviewer:<epoch>, got: ' + rev);
+
+  // clear
+  execFileSync('bash', [helper, 'clear'], { cwd: repoRoot });
+  assert.ok(!fs.existsSync(marker), 'marker must be removed after clear');
+
+  // clear is a no-op when absent.
+  execFileSync('bash', [helper, 'clear'], { cwd: repoRoot });
+});
+
+test('spec-reviewer-marker.sh rejects invalid actions with exit 2', () => {
+  const repoRoot = path.join(__dirname, '..');
+  const helper = path.join(repoRoot, '.claude', 'hooks', 'spec-reviewer-marker.sh');
+  let status = 0;
+  try {
+    execFileSync('bash', [helper, 'write', 'garbage'], { cwd: repoRoot, stdio: 'pipe' });
+  } catch (e) {
+    status = e.status;
+  }
+  assert.strictEqual(status, 2, 'invalid write arg must exit 2');
+
+  status = 0;
+  try {
+    execFileSync('bash', [helper, 'bogus'], { cwd: repoRoot, stdio: 'pipe' });
+  } catch (e) {
+    status = e.status;
+  }
+  assert.strictEqual(status, 2, 'unknown action must exit 2');
+});
+
+test('spec-reviewer marker lifecycle drives enforce hook outcomes', () => {
+  const repoRoot = path.join(__dirname, '..');
+  const marker = path.join(repoRoot, '.claude', '.last-impl-task');
+  const markerHelper = path.join(repoRoot, '.claude', 'hooks', 'spec-reviewer-marker.sh');
+  const enforce = path.join(repoRoot, '.claude', 'hooks', 'spec-reviewer-enforce.sh');
+
+  // Preserve any pre-existing marker so we don't disturb a live /execute run.
+  let savedMarker = null;
+  if (fs.existsSync(marker)) {
+    savedMarker = fs.readFileSync(marker, 'utf-8');
+  }
+
+  try {
+    // write implementer → enforce must BLOCK (exit 2).
+    execFileSync('bash', [markerHelper, 'write', 'implementer'], { cwd: repoRoot });
+    let status = 0;
+    try {
+      execFileSync('bash', [enforce], {
+        cwd: repoRoot,
+        input: '{"tool":"TodoWrite"}',
+        env: { ...process.env, CLAUDE_TRANSCRIPT_PATH: '' },
+        stdio: 'pipe',
+      });
+    } catch (e) {
+      status = e.status;
+    }
+    assert.strictEqual(status, 2, 'enforce hook must block (exit 2) when marker is implementer');
+
+    // write reviewer → enforce must ALLOW (exit 0).
+    execFileSync('bash', [markerHelper, 'write', 'reviewer'], { cwd: repoRoot });
+    let allowStatus = 0;
+    try {
+      execFileSync('bash', [enforce], {
+        cwd: repoRoot,
+        input: '{"tool":"TodoWrite"}',
+        env: { ...process.env, CLAUDE_TRANSCRIPT_PATH: '' },
+        stdio: 'pipe',
+      });
+    } catch (e) {
+      allowStatus = e.status;
+    }
+    assert.strictEqual(allowStatus, 0, 'enforce hook must allow (exit 0) when marker is reviewer');
+
+    // clear → enforce falls back to informational warning, exit 0.
+    execFileSync('bash', [markerHelper, 'clear'], { cwd: repoRoot });
+    let clearStatus = 0;
+    try {
+      execFileSync('bash', [enforce], {
+        cwd: repoRoot,
+        input: '{"tool":"TodoWrite"}',
+        env: { ...process.env, CLAUDE_TRANSCRIPT_PATH: '' },
+        stdio: 'pipe',
+      });
+    } catch (e) {
+      clearStatus = e.status;
+    }
+    assert.strictEqual(clearStatus, 0, 'enforce hook must not block after clear when no transcript');
+  } finally {
+    // Restore any pre-existing marker.
+    if (savedMarker !== null) {
+      fs.writeFileSync(marker, savedMarker);
+    } else {
+      try { fs.rmSync(marker, { force: true }); } catch (_) {}
+    }
+  }
+});
+
 // Cleanup
 try {
   fs.rmSync(TMP, { recursive: true, force: true });

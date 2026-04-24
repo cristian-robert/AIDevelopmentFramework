@@ -108,11 +108,17 @@ fi
 #   * list items (leading -, *, or N.),
 #   * headings (leading #),
 #   * any line containing a file:line pattern (e.g. foo.ts:42).
-# Stage 2 (sed): on prose-marked lines only,
+# Stage 2a (awk): on prose-marked lines, replace inline `...` spans with a
+#   placeholder sentinel (\x02NUM\x02) and append a trailer after \x03 holding
+#   the originals, so stage 2b's word-boundary strip cannot touch backtick
+#   contents. `I think` inside an inline literal becomes a placeholder that
+#   sed won't see as the hedging phrase.
+# Stage 2b (sed): on prose-marked lines only,
 #   * drop hedging phrases (word-boundary-anchored, case-insensitive),
 #   * drop redundant politeness ("Great!", etc.) with optional bang,
 #   * collapse runs of spaces, trim leading whitespace,
-#   * remove the sentinel prefix.
+#   * remove the sentinel prefix (but NOT the trailer — stage 2c needs it).
+# Stage 2c (awk): restore placeholders from the trailer, strip the trailer.
 compacted="$(printf '%s' "$text" | awk '
   BEGIN { in_fence = 0 }
   /^```/               { in_fence = !in_fence; print; next }
@@ -122,6 +128,38 @@ compacted="$(printf '%s' "$text" | awk '
   /^#/                  { print; next }
   /[A-Za-z_.\/-]+\.[A-Za-z0-9]+:[0-9]+/ { print; next }
   { print "\001PROSE\001" $0 }
+' | awk '
+  # Extract inline `...` spans on prose lines only. Placeholder sentinel is
+  # \x02NUM\x02 embedded in the PROSE body line; originals are emitted on a
+  # SEPARATE following line prefixed with \x05TRAIL\x05, packed as
+  # NUM\x04ORIGINAL (repeated, one \x03 separating records). We use a
+  # separate line so sed''s /^\x01PROSE\x01/ address does NOT fire on the
+  # trailer — otherwise sed would strip "I think" out of the stored original.
+  # Double-backtick / triple-backtick spans are already handled by the
+  # fenced-block guard — we only match single-backtick spans with no
+  # backticks inside. Non-greedy via char class [^`].
+  BEGIN { SEP1 = "\002"; SEP2 = "\003"; SEP3 = "\004" }
+  /^\001PROSE\001/ {
+    line = $0
+    out = ""
+    trailer = ""
+    n = 0
+    while (match(line, /`[^`]+`/)) {
+      out = out substr(line, 1, RSTART - 1) SEP1 n SEP1
+      orig = substr(line, RSTART, RLENGTH)
+      if (n > 0) trailer = trailer SEP2
+      trailer = trailer n SEP3 orig
+      line = substr(line, RSTART + RLENGTH)
+      n++
+    }
+    out = out line
+    print out
+    if (n > 0) {
+      print "\005TRAIL\005" trailer
+    }
+    next
+  }
+  { print }
 ' | sed -E '
   /^\x01PROSE\x01/ {
     s/[[:<:]](It seems|I think|I believe|Essentially|Basically|As you can see)[[:>:]][,]?[ ]*//g
@@ -130,6 +168,40 @@ compacted="$(printf '%s' "$text" | awk '
     s/  +/ /g
     s/^\x01PROSE\x01[[:space:]]*/\x01PROSE\x01/
     s/^\x01PROSE\x01//
+  }
+' | awk '
+  # Restore inline-backtick placeholders from the trailer line (if any).
+  # The extractor emitted the body first, then (optionally) a TRAIL line with
+  # records separated by \x03, each record being NUM\x04ORIGINAL. We buffer
+  # the body line and, when the next line is a TRAIL, substitute placeholders
+  # back in; otherwise the buffered body is emitted as-is.
+  BEGIN { SEP1 = "\002"; RECSEP = "\003"; FIELDSEP = "\004"; pending = ""; have_pending = 0 }
+  /^\005TRAIL\005/ {
+    trailer = substr($0, 8)  # strip \x05TRAIL\x05 (7 chars: 1+5+1)
+    body = have_pending ? pending : ""
+    n_rec = split(trailer, recs, RECSEP)
+    for (i = 1; i <= n_rec; i++) {
+      sep = index(recs[i], FIELDSEP)
+      if (sep == 0) continue
+      num = substr(recs[i], 1, sep - 1)
+      orig = substr(recs[i], sep + 1)
+      placeholder = SEP1 num SEP1
+      p = index(body, placeholder)
+      if (p > 0) {
+        body = substr(body, 1, p - 1) orig substr(body, p + length(placeholder))
+      }
+    }
+    print body
+    pending = ""; have_pending = 0
+    next
+  }
+  {
+    if (have_pending) print pending
+    pending = $0
+    have_pending = 1
+  }
+  END {
+    if (have_pending) print pending
   }
 ')"
 

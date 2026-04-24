@@ -31,7 +31,8 @@
     "test:kb": "node cli/kb-search.test.js && node cli/kb-integration.test.js && node cli/lean-index.test.js",
     "test:init": "node cli/init-backup.test.js",
     "test:cli": "node cli/cli-hardening.test.js",
-    "test": "node cli/kb-search.test.js && node cli/kb-integration.test.js && node cli/lean-index.test.js && node cli/init-backup.test.js && node cli/cli-hardening.test.js"
+    "test:hooks": "bash cli/hook-compact.test.sh",
+    "test": "node cli/kb-search.test.js && node cli/kb-integration.test.js && node cli/lean-index.test.js && node cli/init-backup.test.js && node cli/cli-hardening.test.js && bash cli/hook-compact.test.sh"
   },
   "engines": {
     "node": ">=18"

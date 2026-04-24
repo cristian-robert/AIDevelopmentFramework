@@ -47,9 +47,10 @@ For each task in the plan, dispatch TWO subagents in sequence:
 
 **3a. Task Implementer**
 1. Announce: `Starting Task N: [task name] — [dispatch] role=task-implementer task=N`
-2. Dispatch via superpowers:subagent-driven-development with role `task-implementer`
-3. Implementer reads plan task + mandatory files, writes tests first, implements, verifies
-4. On implementer return: capture diff (`git diff`) and task exit status
+2. Write the marker so the enforcement hook can see the dispatch in runtimes without transcript access: run `.claude/hooks/spec-reviewer-marker.sh write implementer`
+3. Dispatch via superpowers:subagent-driven-development with role `task-implementer`
+4. Implementer reads plan task + mandatory files, writes tests first, implements, verifies
+5. On implementer return: capture diff (`git diff`) and task exit status
 
 **3b. Spec Reviewer (MANDATORY — DO NOT SKIP)**
 1. Announce: `Task N implementer complete — [dispatch] role=spec-reviewer task=N`
@@ -64,7 +65,7 @@ For each task in the plan, dispatch TWO subagents in sequence:
    - "Does any choice contradict an existing pattern/reference?"
 4. Reviewer returns PASS or REQUEST_CHANGES with specific blockers
 5. If REQUEST_CHANGES: return to 3a with reviewer output; do NOT proceed to next task
-6. If PASS: mark task checkbox done; proceed
+6. If PASS: mark task checkbox done; write the reviewer marker (`.claude/hooks/spec-reviewer-marker.sh write reviewer`); proceed
 
 **Marker coupling:** The hook pairs on the literal dispatch markers shown in the Announce lines above (`[dispatch] role=task-implementer task=N` and `[dispatch] role=spec-reviewer task=N`) — changing the marker format breaks enforcement. The substring `[dispatch] role=` is what the hook anchors on; incidental mentions of `task-implementer` or `spec-reviewer` elsewhere (e.g. inside TodoWrite items) are intentionally ignored.
 
@@ -76,11 +77,11 @@ To make the enforcement hook reliable across sessions and transcript formats, `/
 
 **Format:** `<state>:<epoch>` where `<state>` is one of `implementer` or `reviewer`, and `<epoch>` is the current Unix epoch in seconds (`date +%s`).
 
-- After dispatching a task-implementer (Step 3a), write `implementer:$(date +%s)` to the marker file.
-- After a spec-reviewer returns PASS (Step 3b), write `reviewer:$(date +%s)` to the marker file.
+- After dispatching a task-implementer (Step 3a), write `implementer:$(date +%s)` via `.claude/hooks/spec-reviewer-marker.sh write implementer`.
+- After a spec-reviewer returns PASS (Step 3b), write `reviewer:$(date +%s)` via `.claude/hooks/spec-reviewer-marker.sh write reviewer`.
 - If the marker's state is `implementer` when the hook fires (Step 3 pairing check), the hook blocks further tool use.
 - **Staleness rule:** if the marker's epoch is older than 3600 seconds (1 hour), the hook treats it as stale and does NOT block (exit 0 with an informational warning). This prevents an interrupted `/execute` session from poisoning an unrelated later session.
-- The marker file is gitignored; it exists only for the duration of an `/execute` run and is deleted on successful completion (Step 6).
+- The marker file is gitignored; it exists only for the duration of an `/execute` run and is deleted on successful completion (Step 5) via `.claude/hooks/spec-reviewer-marker.sh clear`.
 
 ### Step 4: Validation
 
@@ -91,7 +92,7 @@ After all tasks are complete:
 
 ### Step 5: Completion Report
 
-Before emitting the report, tear down the marker file so it cannot poison a later unrelated session: delete `.claude/.last-impl-task` when `/execute` completes successfully (all tasks passed) or when the run is explicitly aborted. If the file is absent, that is fine. (The hook also treats markers older than 1 hour as stale, so a missed teardown degrades gracefully.)
+Before emitting the report, tear down the marker file so it cannot poison a later unrelated session: run `.claude/hooks/spec-reviewer-marker.sh clear` when `/execute` completes successfully (all tasks passed) or when the run is explicitly aborted. The helper is a no-op if the file is absent. (The enforcement hook also treats markers older than 1 hour as stale, so a missed teardown degrades gracefully.)
 
 ```
 === Execution Complete ===

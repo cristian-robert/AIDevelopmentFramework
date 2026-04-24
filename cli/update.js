@@ -288,7 +288,7 @@ async function main() {
     process.exit(1);
   } finally {
     cleanupTmpDir(tmpDir);
-    rl.close();
+    closeRl();
   }
 }
 
