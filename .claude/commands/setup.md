@@ -38,7 +38,7 @@ Verify each required plugin is installed. Present results as a checklist.
 | typescript-lsp | TypeScript projects | `claude plugin install typescript-lsp` |
 | expo-app-design | Expo/React Native projects | `claude plugin install expo-app-design --marketplace expo-plugins` |
 
-### Step 1.5: Check Design-Artifact Skills
+### Step 1.5: Check Design-Artifact Skills + Version Drift
 
 Verify external skills used for design artifacts (HTML prototypes, slide decks, motion, infographics):
 
@@ -46,7 +46,22 @@ Verify external skills used for design artifacts (HTML prototypes, slide decks, 
 |-------|----------------|-----------|
 | huashu-design | `npx skills add alchaincyf/huashu-design` | Check `~/.claude/skills/huashu-design/SKILL.md` exists |
 
-If a project commits design work to `design/` or has `.design-system/brand-spec.md`, treat huashu-design as required and report `[missing]` if absent. Otherwise report it as a recommended skill the user can install on demand.
+Required vs. recommended:
+- If the project commits design work to `design/` OR has `.design-system/brand-spec.md`, treat huashu-design as **required** and report `[missing]` if absent.
+- Otherwise report it as a **recommended** skill the user can install on demand.
+
+**Version-drift check (only if huashu-design is installed):**
+
+1. Read `.claude/.versions.json` → `external_skills.huashu-design.skill_md_sha256`.
+2. Compute the installed file's hash:
+   ```bash
+   shasum -a 256 ~/.claude/skills/huashu-design/SKILL.md | awk '{print $1}'
+   ```
+3. Compare:
+   - **Pin empty** (`""`) → first-run population. Update `.claude/.versions.json` with the computed hash + today's date. Report `[ok] huashu-design — pinned at <short-hash>`.
+   - **Hashes match** → report `[ok] huashu-design — pinned at <short-hash>`.
+   - **Hashes differ** → report `[warn] huashu-design — drifted from pinned version`. Show both hashes (short form). Tell the operator: "The brand-spec.md schema in `.claude/.versions.json#schema_contract` may have changed. Run `/brand-extract` against a known-good project and confirm it still produces a spec with the expected sections before relying on the design path."
+4. **Never auto-update** the pin on drift — only on first-run empty-pin population. The pin is meant to flag drift, not silently accept it.
 
 ### Step 2: Check MCP Servers
 

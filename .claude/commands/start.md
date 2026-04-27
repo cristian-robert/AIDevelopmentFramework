@@ -6,6 +6,21 @@ You are the entry point to the AIDevelopmentFramework PIV+E pipeline. Your job i
 
 If `.claude/.init-meta.json` exists, invoke `/merge-configs` and wait for it to complete before continuing to Step 1. The merge command owns all merge logic; see `.claude/references/merge-strategy.md` for the rules.
 
+## Step 0.5: Deliverable-Type Routing (ask before classifying)
+
+If the user's request involves any UI / visual work (mentions a page, screen, component, dashboard, mockup, prototype, deck, animation, infographic, redesign, refactor of UI, look-and-feel, etc.), run the canonical clarifying script defined in `.claude/references/design-clarifying-script.md` **before** scope detection in Step 2. This avoids the failure mode where keyword classifiers silently route "build a settings panel mockup that turns into a real component" to the wrong path.
+
+**Process:**
+
+1. Detect project state in parallel:
+   - Fresh project (no UI files, no `package.json`) → route directly to the Direction Advisor branch in `/brand-extract`; skip the script and skip Step 2's L0 path's design assumptions.
+   - In-dev project → continue.
+2. Apply the "When the script runs" conditions from the reference. Skip silently for unambiguous requests (explicit artifact words on one side, explicit code-fix words on the other).
+3. Run the 3-question script. Persist answers so `/plan-feature` and `/execute` Step 2.5 read them instead of re-asking.
+4. Use the routing matrix to set the deliverable type before falling through to Step 2.
+
+If no UI / visual signal is present in the request, skip Step 0.5 entirely and proceed to Step 1.
+
 ## Step 1: Gather Context
 
 Run these in parallel:

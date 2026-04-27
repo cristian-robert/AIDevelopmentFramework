@@ -43,23 +43,86 @@ If no knowledge base configured, skip this step.
 
 ### Step 2.5: Design-Artifact Branch (mandatory check)
 
-After loading the plan, check whether it was generated under `/plan-feature` Phase 1.5 (look for the marker `Branch: design-artifact` in the plan frontmatter, or for explicit huashu-design dispatch instructions).
+After loading the plan, read its frontmatter. The plan was tagged by `/plan-feature` Phase 1.5 with one of:
 
-**If this is a design-artifact plan:**
+- `branch: production-code` → fall through to Step 3 below.
+- `branch: design-artifact` → run **2.5a** then **2.5b**.
+- `branch: hybrid` → run **2.5a** then **2.5b**, then **2.5c** to hand off to Step 3 for the code phase.
 
-1. **Pre-flight check:** Confirm `huashu-design` skill is installed (`ls ~/.claude/skills/huashu-design/SKILL.md`). If missing, stop and ask the user to run `npx skills add alchaincyf/huashu-design`.
-2. **Brand-spec check:** Confirm `.design-system/brand-spec.md` exists. If missing, dispatch `/brand-extract` as Task 0 before proceeding.
-3. **Dispatch huashu-design** as the single implementation task, passing:
+If frontmatter is missing or malformed, stop and ask the user to re-run `/plan-feature` so the routing decision is recorded. Do NOT silently keyword-classify here — that's `/plan-feature`'s job.
+
+#### Step 2.5a: License acknowledgement (first dispatch per repo)
+
+huashu-design is **non-commercial-by-default**. Personal/research/learning use is free; commercial / client-deliverable / enterprise / paid-service use requires authorization from the author (`huasheng` / `花叔`, see `https://github.com/alchaincyf/huashu-design#license--usage-rights`).
+
+The framework auto-dispatches huashu-design from this step. To make license obligations visible at the point of use:
+
+1. Check for `.design-system/.huashu-license-ack`. If it exists, skip to 2.5b.
+2. If absent, print the license summary verbatim:
+
+   ```
+   This step will dispatch the huashu-design skill (alchaincyf/huashu-design).
+
+   License — personal use is free; commercial/client/enterprise use requires
+   authorization from the author. The full terms are at:
+   https://github.com/alchaincyf/huashu-design#license--usage-rights
+
+   To proceed, confirm one of:
+     - "personal" — personal/research/learning use; no commercial intent
+     - "commercial-acked" — commercial use; you have obtained or will obtain
+                            authorization from the author
+     - "skip" — abort this run; you will use a different design path
+   ```
+
+3. On user response `personal` or `commercial-acked`, write the ack file:
+
+   ```bash
+   mkdir -p .design-system
+   printf 'mode: %s\nacked_at: %s\nfirst_dispatch_commit: %s\n' \
+     "<user-response>" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git rev-parse HEAD 2>/dev/null || echo 'no-commit')" \
+     > .design-system/.huashu-license-ack
+   ```
+4. On `skip`, abort 2.5 and ask the user how they want to proceed instead. Do not auto-fall-through to Step 3 — they explicitly opted out.
+5. Stage the ack file so it gets committed with the design output. Future dispatches in this repo see the file and skip the prompt.
+
+#### Step 2.5b: Pre-flight + dispatch
+
+1. **Skill installation check:** `ls ~/.claude/skills/huashu-design/SKILL.md`. If missing, stop and tell the user to run `npx skills add alchaincyf/huashu-design`.
+2. **Version-pin check:** Read `.claude/.versions.json`. If `external_skills.huashu-design.skill_md_sha256` is non-empty, hash the installed `SKILL.md` (`shasum -a 256 ~/.claude/skills/huashu-design/SKILL.md`) and compare. On mismatch, warn the operator that the skill has drifted from the tested version; the brand-spec.md schema may have changed; ask whether to proceed.
+3. **Brand-spec check** (driven by the plan's `brand_spec` frontmatter field):
+   - `bootstrap` → if `.design-system/brand-spec.md` is missing, dispatch `/brand-extract` as Task 0 with default mode.
+   - `use-as-is` → dispatch `/brand-extract --mode=codify-as-is` as Task 0 (writes spec from existing CSS without quality gating, with a warning note in `_extraction-log.md`).
+   - `skip` → no spec is written; pass the plan's inline constraints to huashu-design directly.
+   - `n/a` → existing `.design-system/brand-spec.md` is already current per the staleness check; reuse it.
+4. **Staleness check** (when reusing an existing spec):
+   - Read the spec's `Generated:` ISO date.
+   - If older than 90 days → warn but don't block.
+   - If `git log --since=<spec-date> -- 'tailwind.config.*' 'app/globals.css' 'src/styles/**' 'components/ui/**'` returns commits → warn that brand-relevant files changed since the spec was written; suggest a refresh.
+5. **Write the design marker** so `spec-reviewer-enforce.sh` allows file writes during the dispatch:
+
+   ```bash
+   .claude/hooks/spec-reviewer-marker.sh write design
+   ```
+6. **Dispatch huashu-design** as the single implementation task, passing:
    - The prompt from the plan
-   - The path to `.design-system/brand-spec.md`
+   - The path to `.design-system/brand-spec.md` (or inline constraints if `brand_spec: skip`)
    - The output directory: `design/<feature-slug>/`
-   - A directive to follow huashu-design's Junior Designer Workflow (placeholders + reasoning shown early, three iterations: real content → variations → tweaks)
-4. **Skip the implementer → reviewer marker dance** (Steps 3a–3.5 below) — the marker enforcement is for code tasks; design artifacts have a different validation path.
-5. **Hand off** to `/validate` Phase 3.5 (5D Visual Critique) instead of the standard test suite.
+   - A directive to follow huashu-design's Junior Designer Workflow (placeholders + reasoning shown early; three iterations: real content → variations → tweaks)
+7. After dispatch returns, hand off to `/validate` Phase 2.5 (5D Visual Critique). Do **not** clear the design marker yet — Step 5 (Completion Report) clears it on full `/execute` success. If the run aborts mid-flight, run `.claude/hooks/spec-reviewer-marker.sh clear` manually before re-running.
 
-If the plan is hybrid (design + code), execute the design-artifact phase first, then resume the standard task list below for the code phase. The handoff bundle from the design phase becomes the spec for the code phase.
+#### Step 2.5c: Hybrid handoff (only on `branch: hybrid`)
 
-**Otherwise (standard production-code plan), proceed to Step 3 below.**
+The artifact is now produced under `design/<feature-slug>/`, and a `bundle.json` exists per huashu-design's handoff format. To proceed to the code phase:
+
+1. **Clear the design marker** explicitly so the implementer→reviewer enforcement re-engages:
+
+   ```bash
+   .claude/hooks/spec-reviewer-marker.sh clear
+   ```
+2. Read the bundle as the spec for the second plan section. If the plan author put both phases in one file, locate the `## Code Tasks` section now. If the plan was split into two files (per `/plan-feature` hybrid output), pause and tell the user to invoke `/execute` on the second plan file once they're ready to ship the code.
+3. Fall through to **Step 3** for the code-phase tasks. The marker file is now empty/cleared, so the standard implementer→reviewer pairing applies to every subsequent task.
+
+**Otherwise (`branch: production-code`), proceed to Step 3 below.**
 
 ### Step 3: Execute Tasks (implementer → reviewer loop, mandatory)
 

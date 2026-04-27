@@ -20,6 +20,9 @@
 #   "implementer:<epoch>" within STALE_SECS             → exit 2 (block, pair missing)
 #   "implementer:<epoch>" older than STALE_SECS         → exit 0 (stale; warn to stderr)
 #   "reviewer:<epoch>"                                  → exit 0 (pair complete)
+#   "design:<epoch>"                                    → exit 0 (design-artifact path
+#                                                                bypasses pairing — see
+#                                                                /execute Step 2.5)
 #   any other content (malformed)                       → exit 2 (block, force fix-up)
 #
 # STALE_SECS reduced from 3600s (1h) to 600s (10min) — long-running subagents
@@ -63,7 +66,7 @@ fi
 # is a contract violation — block and tell the operator to fix it.
 if [[ "$marker_raw" != *:* ]]; then
   echo "BLOCK: $MARKER_FILE is malformed: '$marker_raw'" >&2
-  echo "Expected format: <implementer|reviewer>:<epoch>. Run \`.claude/hooks/spec-reviewer-marker.sh clear\` and retry." >&2
+  echo "Expected format: <implementer|reviewer|design>:<epoch>. Run \`.claude/hooks/spec-reviewer-marker.sh clear\` and retry." >&2
   exit 2
 fi
 
@@ -95,9 +98,18 @@ case "$marker_state" in
   reviewer)
     exit 0
     ;;
+  design)
+    # Design-artifact path (huashu-design / brand-extract) bypasses the
+    # implementer→reviewer pairing — design tasks have a different validation
+    # path (/validate Phase 2.5: 5D Visual Critique). The marker still records
+    # the dispatch so that on a hybrid plan, when /execute later flips to a
+    # code task, the operator must explicitly clear or rewrite the marker
+    # before the implementer→reviewer enforcement re-engages.
+    exit 0
+    ;;
   *)
     echo "BLOCK: $MARKER_FILE has unknown state: '$marker_state'" >&2
-    echo "Expected 'implementer' or 'reviewer'. Run \`.claude/hooks/spec-reviewer-marker.sh clear\` and retry." >&2
+    echo "Expected 'implementer', 'reviewer', or 'design'. Run \`.claude/hooks/spec-reviewer-marker.sh clear\` and retry." >&2
     exit 2
     ;;
 esac

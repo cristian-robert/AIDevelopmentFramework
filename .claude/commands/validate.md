@@ -57,15 +57,17 @@ If no UI files changed, skip this step.
 
 If the changeset includes files under `design/<slug>/` (preview.html, motion MP4/GIF, slide decks, infographics, mockups), run the 5-Dimension Expert Critique before code review. Skip this phase entirely for production-code-only changes.
 
-Backported from huashu-design's expert-critique pattern. Each axis scored 0–10; minimum 7/10 across all five to pass.
+Backported from huashu-design's expert-critique pattern, with **blocking vs. advisory** split.
 
-| Dimension | What to score |
-|---|---|
-| **1. Philosophical coherence** | Does the design have a single, identifiable point of view? Or is it a mash-up of references? Slop hallmark: "looks like every AI-generated landing page" — no distinguishable philosophy. |
-| **2. Visual hierarchy** | Can you tell what's primary, secondary, tertiary in 2 seconds? Is the eye guided, or scanning? Slop hallmark: every element shouts at the same volume. |
-| **3. Execution craft** | Spacing rhythm consistent? Typography pairing intentional? Borders/shadows/radii varied by component role? Slop hallmark: every surface has the same `rounded-lg` + `shadow-sm`. |
-| **4. Functionality** | Does it solve the actual brief? Are user goals discoverable? For prototypes — does the click flow work end-to-end without confusion? |
-| **5. Innovation** | Is there at least one moment that doesn't look like training-data median? Or is the whole thing a recombination of common patterns? |
+| Dimension | What to score | Status |
+|---|---|---|
+| **2. Visual hierarchy** | Can you tell what's primary, secondary, tertiary in 2 seconds? Is the eye guided, or scanning? Slop hallmark: every element shouts at the same volume. | **BLOCKING (≥7/10 to pass)** |
+| **4. Functionality** | Does it solve the actual brief? Are user goals discoverable? For prototypes — does the click flow work end-to-end without confusion? | **BLOCKING (≥7/10 to pass)** |
+| **1. Philosophical coherence** | Does the design have a single, identifiable point of view? Or is it a mash-up of references? Slop hallmark: "looks like every AI-generated landing page" — no distinguishable philosophy. | Advisory |
+| **3. Execution craft** | Spacing rhythm consistent? Typography pairing intentional? Borders/shadows/radii varied by component role? Slop hallmark: every surface has the same `rounded-lg` + `shadow-sm`. | Advisory |
+| **5. Innovation** | Is there at least one moment that doesn't look like training-data median? Or is the whole thing a recombination of common patterns? | Advisory |
+
+**Why split:** the same model that produced the artifact also scores it; numeric LLM judgments are self-correlated. Hierarchy and Functionality have operationalizable definitions (eye-tracking proxy via screenshot inspection, click-flow assertion). Philosophy / Execution / Innovation are taste calls — useful as feedback, dangerous as ship gates. A perfectly fine internal admin tool gets "Innovation 6/10"; that's not a ship-blocker.
 
 **Process:**
 
@@ -73,26 +75,35 @@ Backported from huashu-design's expert-critique pattern. Each axis scored 0–10
    - The artifact path(s) under `design/<slug>/`
    - `.design-system/brand-spec.md` (if present)
    - `.claude/references/frontend-antislop-patterns.md`
+   - The deliverable type from the plan frontmatter (`internal-tool` / `external-marketing` / `pitch-deck` / etc.) so scoring can be context-aware
 2. Subagent screenshots each artifact at desktop + mobile viewports, then scores each dimension.
-3. Subagent returns a radar-chart-shaped report:
+3. Subagent returns a radar-shaped report:
 
    ```
    === 5D Visual Critique ===
 
-   Philosophical coherence:  N/10  — [one-line rationale]
+   [BLOCKING]
    Visual hierarchy:         N/10  — [one-line rationale]
-   Execution craft:          N/10  — [one-line rationale]
    Functionality:            N/10  — [one-line rationale]
+
+   [ADVISORY]
+   Philosophical coherence:  N/10  — [one-line rationale]
+   Execution craft:          N/10  — [one-line rationale]
    Innovation:               N/10  — [one-line rationale]
 
    Keep:        [what works — preserve in revisions]
    Fix:         [what's blocking — must address before ship]
    Quick wins:  [high-leverage tweaks — 5-min fixes]
 
-   Verdict: PASS (all axes ≥7) / FAIL — N axes below threshold
+   Verdict: PASS (Hierarchy ≥7 AND Functionality ≥7) / FAIL — [which blocking axis]
    ```
 
-4. If verdict is FAIL, do not proceed to Phase 3. Return findings to the user; either iterate on the artifact (re-dispatch huashu-design with the fix list) or accept the score with explicit user override.
+4. **Verdict handling:**
+   - **PASS** → record advisory scores in `design/<slug>/_critique.md` for future reference; proceed to Phase 3.
+   - **FAIL** on a blocking axis → do not proceed. Return findings to the user; either iterate (re-dispatch huashu-design with the fix list) or accept with explicit user override (the user can say "ship anyway" — we don't decide for them).
+   - Advisory scores **never block**, but if any advisory axis is ≤4, surface it loudly: that's a "this is shippable but you should know" signal, not a gate.
+
+**Override path:** if the user explicitly types `override: ship anyway` or runs `/validate --skip-visual-critique`, log the override in `design/<slug>/_critique.md` (with timestamp + reason if provided) and proceed. The framework does not block humans; it surfaces signals.
 
 ### Phase 3: QA Test Verification
 

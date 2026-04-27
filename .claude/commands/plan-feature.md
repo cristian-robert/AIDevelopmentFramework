@@ -19,28 +19,45 @@ Creates a detailed implementation plan for a feature. The plan must pass the "no
 3. For L/XL features, invoke brainstorming skill first
 4. Write user stories in "As a [user], I want [action] so that [benefit]" format
 
-### Phase 1.5: Design-Artifact Detection (mandatory)
+### Phase 1.5: Deliverable-Type Routing (ask, don't guess)
 
-If the feature description matches any of these triggers, the work is a **design artifact**, not production app code:
+This phase decides whether the feature is **production code**, a **design artifact**, or a **hybrid**. Do not silently keyword-match — load the canonical script and follow it.
 
-- prototype, mockup, hi-fi, clickable demo
-- pitch deck, slide deck, presentation, keynote
-- launch animation, motion graphic, MP4, GIF
-- infographic, data viz, one-pager, marketing collateral
-- "design exploration", "design variations", "look-and-feel"
+**Reference:** `.claude/references/design-clarifying-script.md` — the canonical question script + routing matrix. Both `/start` and `/plan-feature` use the same source of truth.
 
-**If a design artifact is detected:**
+**Process:**
 
-1. Branch the plan to use `huashu-design` instead of the standard `/execute` task list. The plan structure becomes:
-   - Pre-step: Verify `.design-system/brand-spec.md` exists. If not, run `/brand-extract` first as Task 0.
-   - Single-task plan: dispatch huashu-design with the prompt + brand-spec.md path
-   - Validation: `/validate` Phase 3.5 (5D Visual Critique)
-2. Skip the standard "tests before implementation" requirement — design artifacts are not unit-testable. Replace with:
-   - tester-agent VERIFY/FLOW screenshot + antislop checklist
-   - 5D Critique radar score ≥ 7/10 across all five dimensions
-3. The `bundle.json` / handoff bundle is the artifact. If the user later asks for a production implementation, that becomes a separate hybrid plan (huashu-design output → `/execute` for the React/Next.js conversion).
+1. **Detect project state** (run in parallel):
+   - Fresh project: no UI files (`*.tsx`, `*.jsx`, `*.vue`, `*.svelte`) and no `package.json` → route directly to `/brand-extract` Direction Advisor; do NOT run this phase.
+   - In-dev project: has UI files → continue.
 
-If the feature is hybrid (artifact AND production code), generate **two plans** — the artifact one first, the implementation plan second, with the bundle.json as the bridge.
+2. **Decide whether to ask** by checking the "When the script runs" conditions in the reference:
+   - **Skip the script** when intent is unambiguous (explicit `mockup`/`prototype`/`deck`/`slide`/`infographic`/`pitch`/`motion graphic` → design; explicit `bug fix`/`typo`/`endpoint`/`migration` or specific code-only issue → production).
+   - **Run the script** otherwise. Most realistic in-dev requests fall here — that's expected.
+
+3. **Run the 3-question script** verbatim from the reference. Send all three questions in one message; wait for all answers; don't dribble.
+
+4. **Apply the routing matrix** (also in the reference) to deterministically map answers → plan branch.
+
+5. **Write the plan with frontmatter** capturing the decision so `/execute` Step 2.5 can read it instead of re-classifying:
+
+   ```yaml
+   ---
+   branch: design-artifact   # or production-code, or hybrid
+   q1: b                      # answers from the clarifying script (omit if script was skipped)
+   q2: a
+   q3: a
+   brand_spec: bootstrap     # or use-as-is, skip, or n/a
+   ---
+   ```
+
+**Per-branch plan shapes:**
+
+- **`production-code`** → continue to Phase 2 below as normal.
+- **`design-artifact`** → single-task plan that dispatches huashu-design. Pre-step: verify `.design-system/brand-spec.md` per the chosen `brand_spec` mode (bootstrap = run `/brand-extract` as Task 0; use-as-is = run `/brand-extract --mode=codify-as-is`; skip = inline constraints only). Validation: `/validate` Phase 2.5 (5D Visual Critique). Skip the "tests before implementation" requirement — replace with tester-agent VERIFY screenshot + antislop checklist + 5D Critique.
+- **`hybrid`** → emit **two plans**: (1) design-artifact plan first, (2) production-code plan that consumes the handoff bundle. The `bundle.json` is the contract.
+
+**Anti-pattern guard:** if you find yourself reaching for a keyword list to decide, you're in script territory — ask. The script exists because keyword classifiers misroute "build a settings panel mockup that turns into a real component."
 
 ### Phase 2: Codebase Intelligence (Parallel Sub-Agents)
 
