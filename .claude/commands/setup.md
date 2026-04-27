@@ -38,6 +38,16 @@ Verify each required plugin is installed. Present results as a checklist.
 | typescript-lsp | TypeScript projects | `claude plugin install typescript-lsp` |
 | expo-app-design | Expo/React Native projects | `claude plugin install expo-app-design --marketplace expo-plugins` |
 
+### Step 1.5: Check Design-Artifact Skills
+
+Verify external skills used for design artifacts (HTML prototypes, slide decks, motion, infographics):
+
+| Skill | Install Command | Detection |
+|-------|----------------|-----------|
+| huashu-design | `npx skills add alchaincyf/huashu-design` | Check `~/.claude/skills/huashu-design/SKILL.md` exists |
+
+If a project commits design work to `design/` or has `.design-system/brand-spec.md`, treat huashu-design as required and report `[missing]` if absent. Otherwise report it as a recommended skill the user can install on demand.
+
 ### Step 2: Check MCP Servers
 
 Verify project-level MCP server configuration if applicable:

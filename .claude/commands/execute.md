@@ -41,6 +41,26 @@ This supplements the plan's mandatory reading with wiki knowledge the plan autho
 
 If no knowledge base configured, skip this step.
 
+### Step 2.5: Design-Artifact Branch (mandatory check)
+
+After loading the plan, check whether it was generated under `/plan-feature` Phase 1.5 (look for the marker `Branch: design-artifact` in the plan frontmatter, or for explicit huashu-design dispatch instructions).
+
+**If this is a design-artifact plan:**
+
+1. **Pre-flight check:** Confirm `huashu-design` skill is installed (`ls ~/.claude/skills/huashu-design/SKILL.md`). If missing, stop and ask the user to run `npx skills add alchaincyf/huashu-design`.
+2. **Brand-spec check:** Confirm `.design-system/brand-spec.md` exists. If missing, dispatch `/brand-extract` as Task 0 before proceeding.
+3. **Dispatch huashu-design** as the single implementation task, passing:
+   - The prompt from the plan
+   - The path to `.design-system/brand-spec.md`
+   - The output directory: `design/<feature-slug>/`
+   - A directive to follow huashu-design's Junior Designer Workflow (placeholders + reasoning shown early, three iterations: real content → variations → tweaks)
+4. **Skip the implementer → reviewer marker dance** (Steps 3a–3.5 below) — the marker enforcement is for code tasks; design artifacts have a different validation path.
+5. **Hand off** to `/validate` Phase 3.5 (5D Visual Critique) instead of the standard test suite.
+
+If the plan is hybrid (design + code), execute the design-artifact phase first, then resume the standard task list below for the code phase. The handoff bundle from the design phase becomes the spec for the code phase.
+
+**Otherwise (standard production-code plan), proceed to Step 3 below.**
+
 ### Step 3: Execute Tasks (implementer → reviewer loop, mandatory)
 
 For each task in the plan, dispatch TWO subagents in sequence:

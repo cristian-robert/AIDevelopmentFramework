@@ -42,6 +42,14 @@ Skills are installed separately from plugins. Key categories:
 
 **Web and Frontend:** agent-browser, frontend-design, frontend-aesthetics, ui-ux-pro-max, shadcn-ui, nextjs-app-router-patterns, vercel-react-best-practices, web-design-guidelines
 
+**Design Artifacts (HTML prototypes, slide decks, motion, infographics):**
+
+```bash
+npx skills add alchaincyf/huashu-design
+```
+
+`huashu-design` is the framework's recommended path for **design artifacts** (clickable HTML prototypes, editable PPTX decks, MP4/GIF motion, print-grade infographics) as distinct from production app code. It's agent-agnostic, ships its own Core Asset Protocol, and pairs with the project-local `/brand-extract` skill (`.claude/skills/brand-extract/`) so brand assets are extracted once per project instead of asked for every run. License is free for personal/research use; commercial/client work requires authorization from the author. See `.claude/rules/frontend.md` for the design-skill gate that routes between huashu-design and the production-UI skills.
+
 **Backend and Database:** fastapi-python, mongodb, mongodb-development, supabase-postgres-best-practices, stripe-best-practices
 
 **Testing and Security:** qa-test-planner, security-audit, web-security-testing, pentest-expert

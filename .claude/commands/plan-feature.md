@@ -15,8 +15,32 @@ Creates a detailed implementation plan for a feature. The plan must pass the "no
    - What user-facing behavior should change?
    - What are the acceptance criteria?
    - Is this S/M/L/XL scope?
+   - **Is this a design artifact or production code?** (see Phase 1.5)
 3. For L/XL features, invoke brainstorming skill first
 4. Write user stories in "As a [user], I want [action] so that [benefit]" format
+
+### Phase 1.5: Design-Artifact Detection (mandatory)
+
+If the feature description matches any of these triggers, the work is a **design artifact**, not production app code:
+
+- prototype, mockup, hi-fi, clickable demo
+- pitch deck, slide deck, presentation, keynote
+- launch animation, motion graphic, MP4, GIF
+- infographic, data viz, one-pager, marketing collateral
+- "design exploration", "design variations", "look-and-feel"
+
+**If a design artifact is detected:**
+
+1. Branch the plan to use `huashu-design` instead of the standard `/execute` task list. The plan structure becomes:
+   - Pre-step: Verify `.design-system/brand-spec.md` exists. If not, run `/brand-extract` first as Task 0.
+   - Single-task plan: dispatch huashu-design with the prompt + brand-spec.md path
+   - Validation: `/validate` Phase 3.5 (5D Visual Critique)
+2. Skip the standard "tests before implementation" requirement — design artifacts are not unit-testable. Replace with:
+   - tester-agent VERIFY/FLOW screenshot + antislop checklist
+   - 5D Critique radar score ≥ 7/10 across all five dimensions
+3. The `bundle.json` / handoff bundle is the artifact. If the user later asks for a production implementation, that becomes a separate hybrid plan (huashu-design output → `/execute` for the React/Next.js conversion).
+
+If the feature is hybrid (artifact AND production code), generate **two plans** — the artifact one first, the implementation plan second, with the bundle.json as the bridge.
 
 ### Phase 2: Codebase Intelligence (Parallel Sub-Agents)
 

@@ -62,6 +62,28 @@ This file is loaded by the `frontend` skill chain (and can be linked from design
 - Vary radius and elevation by component role — an input, a card, and a modal shouldn't all have the same radius/shadow.
 - Content-first copy: write the CTA you'd say out loud, not the one with a rocket emoji.
 
+## Brand Asset Anti-Patterns
+
+When the deliverable names a specific brand or product, the assets you use to *represent* that brand carry as much slop signal as the colors and fonts. Backported from huashu-design's Core Asset Protocol [12].
+
+- **CSS-silhouette / hand-drawn SVG stand-ins for real product photography** — the single biggest "generic AI tech animation" tell. Every brand looks identical when its product is rendered as a rounded-rect outline with a gradient fill. If the work names a real brand, use real assets.
+- **Color palette + font extracted, but no logo / product render / UI screenshot** — branding without recognition. The recognizability ranking is: logo > product render > UI screenshot > color > font > vibe-keyword. Skipping the top three and only doing the bottom three is the modal AI failure mode.
+- **Stock-photo placeholder where a real product image was findable** — usually means the agent didn't try `.com/press`, `.com/brand`, or YouTube launch-film frame extraction.
+- **Mixed-quality assets** — pairing a 600px AppStore screenshot with a 3000px hero render. Visual cacophony reads as low-effort.
+
+**Alternatives — the 5-10-2-8 quality gate (huashu-design):**
+
+- **5** search rounds across distinct sources (official press kit, product page, official social, YouTube launch-film frames, Wikimedia, user-account screenshot if applicable) — not "first page of Google Images."
+- **10** candidates collected before filtering — gives you something to reject from.
+- **2** finals chosen — more than two competing hero images dilutes the composition.
+- **8/10** minimum quality score per asset across: resolution (≥2000px, ≥3000px for print/big-screen), license clarity (official > public-domain > free-stock; suspected pirated = score 0), brand-vibe match, light/composition consistency with the other final, independent narrative role.
+
+**Logo exception:** logos are not subject to 5-10-2-8 — they're a recognizability root, not a multi-choice. Use the official logo even if it's a 6/10 file; missing logo entirely is the failure mode.
+
+**When you can't find an 8/10 asset:** use an honest placeholder (gray block + "{{ProductImage}}" label) or generate one with an AI image model using a real product photo as the conditioning reference. **Never substitute a hand-drawn CSS shape.** A gray block reads as "in progress"; a CSS silhouette reads as "AI couldn't be bothered."
+
+**The frozen contract:** these decisions live in `.design-system/brand-spec.md`, which the project-level `/brand-extract` skill writes once and huashu-design reads on every invocation. Reasoning per huashu-design: "un-frozen knowledge evaporates" — the protocol exists because AI agents lose context between sessions; the spec persists.
+
 ## Motion Anti-Patterns
 
 - **Marquee logos scrolling horizontally** on every landing page's "trusted by" section [10].
@@ -90,6 +112,7 @@ This file is loaded by the `frontend` skill chain (and can be linked from design
 9. [Is Anyone Else Tired of Every Tailwind/shadcn App Looking the Same?](https://www.designsystemscollective.com/is-anyone-else-tired-of-every-tailwind-shadcn-app-looking-the-same-69c545e73114) — accessed 2026-04-22 — enumerates shared shadcn aesthetic: same card, input, table, nav, button proportions across products.
 10. [Dribbble — bento grid hero search](https://dribbble.com/search/bento-grid-hero-section) — accessed 2026-04-22 — evidence of bento-grid-hero saturation across thousands of recent designs, confirming the template fatigue critique.
 11. [Reddit r/webdesign — Excessive scroll animation discussion](https://www.reddit.com/r/webdesign/comments/1rqsygf/what_do_you_think_about_the_excessive_scroll/) — accessed 2026-04-22 — designers naming scroll-triggered fade-in everywhere as a "lazy or AI-feeling" tell.
+12. [alchaincyf/huashu-design SKILL.md (Core Asset Protocol)](https://github.com/alchaincyf/huashu-design/blob/master/SKILL.md) — accessed 2026-04-27 — source for the brand-asset recognizability ranking, the 5-10-2-8 quality gate, and the "no CSS silhouette" rule. A/B-tested with 6 agents, 5× variance reduction reported by author.
 
 ---
 

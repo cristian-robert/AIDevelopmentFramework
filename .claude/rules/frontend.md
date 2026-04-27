@@ -7,7 +7,13 @@ globs: ["**/web/**", "**/frontend/**", "**/app/**", "**/*.tsx", "**/*.jsx", "**/
 
 ## Design Skill Gate (MANDATORY)
 
-Before creating any UI component or page, ask the user which design approach:
+**Step 0 — branch by deliverable type:**
+
+- **Production app code** (React components, pages, routes, real shipping UI) → ask the 3-way question below
+- **Design artifacts** (clickable HTML prototype, slide deck, motion piece, infographic, mockup, pitch one-pager) → use **`huashu-design`** (`npx skills add alchaincyf/huashu-design`). Pre-step: run `/brand-extract` if `.design-system/brand-spec.md` is missing — it amortizes huashu's Core Asset Protocol across the project so the skill doesn't re-ask for brand assets every run.
+- **Hybrid** (artifact → real implementation) → huashu-design first, then the artifact's handoff bundle feeds `/execute` for the production code path.
+
+**Step 1 — production-code 3-way (only when not using huashu-design):**
 
 1. **`/frontend-design`** — Full page/component creation with bold aesthetics
 2. **`/frontend-aesthetics`** — Lightweight guardrails (typography, color, motion)

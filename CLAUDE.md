@@ -54,6 +54,15 @@ For non-trivial tasks, choose your discipline level:
 - **mobile-tester-agent** — Mobile app testing via mobile-mcp (VERIFY/FLOW)
 - **ui-ux-analyzer** — Design audit agent with screenshots and reports
 
+## Design Artifacts vs. Production Code
+
+Two distinct paths through the pipeline:
+
+- **Production code** (React components, pages, real shipping UI) — `/plan-feature` → `/execute` (implementer + reviewer subagents) → `/validate` (Phases 1–7)
+- **Design artifacts** (clickable HTML prototypes, slide decks, motion, infographics, mockups) — `/plan-feature` Phase 1.5 detects intent → `/brand-extract` (if `.design-system/brand-spec.md` missing) → `/execute` Step 2.5 dispatches **`huashu-design`** → `/validate` Phase 2.5 (5D Visual Critique)
+
+The design-artifact branch uses [huashu-design](https://github.com/alchaincyf/huashu-design) externally; install with `npx skills add alchaincyf/huashu-design`. Project-local `.claude/skills/brand-extract/` writes `.design-system/brand-spec.md` once per project so huashu-design's Core Asset Protocol doesn't re-ask for assets every run. See `.claude/rules/frontend.md` for the gate that routes between the two paths.
+
 ## Knowledge Base
 
 Unified LLM knowledge base inspired by [Karpathy's LLM Knowledge Bases](https://x.com/karpathy) workflow. External research and project knowledge live together as a flat wiki. The LLM ingests raw sources, compiles them into wiki articles, auto-searches during task work, and grows the wiki from every coding session.

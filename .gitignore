@@ -38,3 +38,4 @@ build/
 
 # Backup files from init/update (temporary, consumed by /start merge)
 *.backup
+.firecrawl/

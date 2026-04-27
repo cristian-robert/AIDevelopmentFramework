@@ -53,6 +53,47 @@ If no UI files changed, skip this step.
 - Check: endpoints respond with correct status codes
 - If Supabase: run `get_advisors` for schema safety
 
+### Phase 2.5: 5D Visual Critique (design artifacts only)
+
+If the changeset includes files under `design/<slug>/` (preview.html, motion MP4/GIF, slide decks, infographics, mockups), run the 5-Dimension Expert Critique before code review. Skip this phase entirely for production-code-only changes.
+
+Backported from huashu-design's expert-critique pattern. Each axis scored 0–10; minimum 7/10 across all five to pass.
+
+| Dimension | What to score |
+|---|---|
+| **1. Philosophical coherence** | Does the design have a single, identifiable point of view? Or is it a mash-up of references? Slop hallmark: "looks like every AI-generated landing page" — no distinguishable philosophy. |
+| **2. Visual hierarchy** | Can you tell what's primary, secondary, tertiary in 2 seconds? Is the eye guided, or scanning? Slop hallmark: every element shouts at the same volume. |
+| **3. Execution craft** | Spacing rhythm consistent? Typography pairing intentional? Borders/shadows/radii varied by component role? Slop hallmark: every surface has the same `rounded-lg` + `shadow-sm`. |
+| **4. Functionality** | Does it solve the actual brief? Are user goals discoverable? For prototypes — does the click flow work end-to-end without confusion? |
+| **5. Innovation** | Is there at least one moment that doesn't look like training-data median? Or is the whole thing a recombination of common patterns? |
+
+**Process:**
+
+1. Dispatch a critique subagent with `MODE=visual-critique`, passing:
+   - The artifact path(s) under `design/<slug>/`
+   - `.design-system/brand-spec.md` (if present)
+   - `.claude/references/frontend-antislop-patterns.md`
+2. Subagent screenshots each artifact at desktop + mobile viewports, then scores each dimension.
+3. Subagent returns a radar-chart-shaped report:
+
+   ```
+   === 5D Visual Critique ===
+
+   Philosophical coherence:  N/10  — [one-line rationale]
+   Visual hierarchy:         N/10  — [one-line rationale]
+   Execution craft:          N/10  — [one-line rationale]
+   Functionality:            N/10  — [one-line rationale]
+   Innovation:               N/10  — [one-line rationale]
+
+   Keep:        [what works — preserve in revisions]
+   Fix:         [what's blocking — must address before ship]
+   Quick wins:  [high-leverage tweaks — 5-min fixes]
+
+   Verdict: PASS (all axes ≥7) / FAIL — N axes below threshold
+   ```
+
+4. If verdict is FAIL, do not proceed to Phase 3. Return findings to the user; either iterate on the artifact (re-dispatch huashu-design with the fix list) or accept the score with explicit user override.
+
 ### Phase 3: QA Test Verification
 
 QA automation tests are mandatory for all domains affected by the implementation.

@@ -17,6 +17,7 @@ Triggered alongside `.claude/rules/frontend.md` for any UI change.
 - No "✨ AI-powered" or equivalent copy
 - Custom card borders — not default shadcn glow
 - Motion has a purpose; honor `prefers-reduced-motion`
+- **No CSS-silhouette stand-ins for real product imagery** — if a brand or product is named, use real assets (logo SVG, official renders, UI screenshots) per `.design-system/brand-spec.md`; never substitute hand-drawn SVG outlines or generic gradient blobs
 
 ## Checklist
 
@@ -25,6 +26,7 @@ Triggered alongside `.claude/rules/frontend.md` for any UI change.
 - [ ] Components diverge from default shadcn look
 - [ ] No AI-themed filler copy
 - [ ] Motion is purposeful and respects reduced-motion
+- [ ] If the work names a specific brand/product, real assets are used (no CSS silhouettes); brand-spec.md is up to date
 
 ## References
 
