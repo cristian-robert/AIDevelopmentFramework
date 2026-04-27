@@ -42,6 +42,7 @@ Updates framework files while preserving your project-specific configurations (k
 - **New feature?** Plan and decompose into issues
 - **Have an issue?** Load context and start building
 - **Found a bug?** Debug systematically
+- **Building a design artifact** (prototype, deck, mockup, motion piece)? Asks you 3 clarifying questions, then routes through `/brand-extract` → `huashu-design` → 5D Visual Critique
 
 ## The PIV+E Loop
 
@@ -70,6 +71,7 @@ Plan ──> Implement ──> Validate ──> Evolve
 | `/ship` | Validate | Updates knowledge base, optional Codex review, commits, pushes, creates PR |
 | `/evolve` | Evolve | Updates rules and knowledge base |
 | `/setup` | Utility | Checks framework health and dependencies |
+| `/merge-configs` | Utility | Reconciles existing user config with framework files after init/update |
 
 ## Scope Levels
 
@@ -80,16 +82,33 @@ Plan ──> Implement ──> Validate ──> Evolve
 | L2 (Issue) | "I have issue #42" | Prime > Plan > Execute > Validate > Ship |
 | L3 (Bug) | "There's a bug" | Prime > Debug > Fix > Validate > Ship |
 
+## Production Code vs. Design Artifacts
+
+Two distinct paths through the pipeline. The framework asks before guessing:
+
+| Path | What it produces | Validation |
+|---|---|---|
+| **Production code** | Real shipping React/Next.js/Vue/Svelte components, routes, features | Implementer + spec-reviewer subagent pairing, lint, types, QA E2E, security review |
+| **Design artifacts** | Clickable HTML prototypes, slide decks (editable PPTX), motion (MP4/GIF), infographics, mockups | 5D Visual Critique (Hierarchy + Functionality blocking; Philosophy / Execution / Innovation advisory) |
+| **Hybrid** | Artifact first, then production implementation | Both, in sequence; the artifact's handoff bundle becomes the spec for the code phase |
+
+When `/start` or `/plan-feature` detects ambiguous UI intent on an in-development project, it runs a 3-question clarifying script (see `.claude/references/design-clarifying-script.md`) instead of keyword-classifying. Your answers persist in plan frontmatter so `/execute` reads them rather than re-classifying.
+
+The design-artifact path uses **[huashu-design](https://github.com/alchaincyf/huashu-design)** (external skill, install with `npx skills add alchaincyf/huashu-design`) and the framework-local **`/brand-extract`** skill that writes a canonical `.design-system/brand-spec.md` once per project so brand assets aren't asked for every run. Project-state-aware: fresh projects route to a Direction Advisor (5 schools × 20 design philosophies); ad-hoc projects (no Tailwind / no tokens) require an explicit opt-in before "codifying" their existing patterns. License acknowledgement is required at first dispatch per repo (huashu-design is non-commercial-by-default).
+
 ## What's Inside
 
 ```
 .claude/
-├── commands/       14 pipeline commands (incl. 4 /kb commands)
+├── commands/       15 pipeline commands (incl. 4 /kb commands)
 ├── agents/         4 specialist agents + template
-├── skills/         Framework-specific skills
-├── rules/          8 auto-loading domain rules + template
-├── references/     7 templates (PRD, plan, issue, patterns, KB articles)
-└── hooks/          5 guardrails (branch protection, reminders)
+├── skills/         3 framework-local skills (brand-extract, e2e-test, playwright-cli)
+├── rules/          9 auto-loading domain rules + template (incl. frontend-antislop)
+├── references/     References + templates (PRD, plan, issue, patterns, KB,
+│                   anti-slop catalogue, design clarifying script)
+├── hooks/          8 guardrails (branch protection, spec-reviewer marker enforcement,
+│                   evolve/plan reminders, output compaction)
+└── .versions.json  Pinned external-skill SHAs + brand-spec schema contract
 cli/
 └── kb-search.js    TF-IDF search tool for knowledge base
 ```
@@ -106,7 +125,8 @@ A unified LLM knowledge base inspired by [Karpathy's LLM Knowledge Bases](https:
 │   ├── _index.md    # Master index grouped by type
 │   └── _tags.md     # Tag registry with article counts
 └── _search/
-    └── index.json   # TF-IDF search index (auto-generated)
+    ├── index.json       # TF-IDF search index (auto-generated)
+    └── lean-index.json  # Lean (metadata-only) index for cheap context loading
 ```
 
 **KB Commands:**
@@ -125,16 +145,17 @@ Path: .obsidian/
 
 Works with [Obsidian](https://obsidian.md/) for a navigable UI, but Obsidian is not required — it's just markdown.
 
-## Code Review Layers
+## Review Layers
 
-The framework supports two complementary review layers:
+The framework supports three complementary review layers:
 
 | Layer | When | What it checks |
 |-------|------|---------------|
-| **Superpowers Code Review** | `/validate` | Implementation defects, plan adherence, security, edge cases |
+| **Superpowers Code Review** | `/validate` Phase 5 | Implementation defects, plan adherence, security, edge cases |
+| **5D Visual Critique** | `/validate` Phase 2.5 (design artifacts only) | Visual hierarchy + functionality (blocking ≥7/10), philosophy / execution / innovation (advisory). Backported from huashu-design with the self-grading bias fixed via an independent scoring subagent. |
 | **Codex Adversarial Review** | `/ship` (optional) | Design choices, tradeoffs, assumptions, alternative approaches |
 
-The adversarial review requires an OpenAI subscription and the Codex plugin. It questions whether the *approach* is right, while the code review checks whether the *implementation* is correct.
+The adversarial review requires an OpenAI subscription and the Codex plugin. It questions whether the *approach* is right; the code review checks whether the *implementation* is correct; the visual critique scores whether design artifacts ship-ready quality across the dimensions that LLMs can judge reliably (hierarchy and functionality), with the more taste-driven dimensions surfaced as advisory rather than gating.
 
 ## Specialist Agents
 
@@ -148,10 +169,12 @@ The adversarial review requires an OpenAI subscription and the Codex plugin. It 
 ## CLI Reference
 
 ```
-npx ai-development-framework init          Install framework (backs up existing files)
-npx ai-development-framework update        Update framework (backs up, run /start to merge)
-npx ai-development-framework --version     Show version
-npx ai-development-framework --help        Show help
+npx ai-development-framework init             Install framework (backs up existing files)
+npx ai-development-framework update           Update framework (backs up, run /start to merge)
+npx ai-development-framework lean-index       Rebuild the lean (metadata-only) KB index
+npx ai-development-framework merge-settings   Deep-merge user .claude/settings.local.json with framework version
+npx ai-development-framework --version        Show version
+npx ai-development-framework --help           Show help
 ```
 
 ## Documentation
@@ -161,6 +184,7 @@ npx ai-development-framework --help        Show help
 - [Command Reference](docs/command-reference.md) — All commands
 - [Customization](docs/customization.md) — Adding agents, rules, skills, knowledge base
 - [Plugin Install Guide](docs/plugin-install-guide.md) — Dependencies
+- [Changelog](docs/changelog/) — v0.4 (PIV+E hardening), v0.5 (design-artifact pipeline)
 
 ## Credits
 
