@@ -6,12 +6,14 @@ This step decomposes monolithic user content into the right destination files **
 
 ## When this step runs
 
-Run decomposition for a discovered file IF either holds:
+Run decomposition for a file IF any of these holds:
 
-1. The file is over its budget per `cli/file-size-check.js` (run with `--json`, look at `level=block` or `level=warn` entries that target this file).
-2. `.claude/.init-meta.json#previousVersion` is `unknown`, missing, or starts with `0.4` or earlier (semver compare; treat the SemVer-prefix string `0.4` as "below 0.5"). v0.4 predates compression — its CLAUDE.md and rules are inline by design.
+1. **Pre-merge trigger** (Step 3 of `/merge-configs`): the user-side file is already over budget per `node cli/file-size-check.js --json`, OR `.claude/.init-meta.json#previousVersion` is `unknown`, missing, or below `0.5` (semver compare; v0.4 and earlier predate compression).
+2. **Post-merge trigger** (Step 4's budget guard): a category-specific merge wrote a result that the lint flags as `level=block`. Treat the merged file the same as a user-monolithic file — walk it section by section.
 
-If neither holds, fall back to the section-preserving merge documented in `.claude/references/merge-strategy.md`.
+In both modes the routine is the same. The difference is **only the input source**: pre-merge looks at the user's `.backup` directly; post-merge looks at the merged result the executor just wrote. The classification table, the per-section approval flow, and the budget re-check are identical.
+
+If none of those triggers hold, fall back to the section-preserving merge documented in `.claude/references/merge-strategy.md`.
 
 ## The decomposition routine
 

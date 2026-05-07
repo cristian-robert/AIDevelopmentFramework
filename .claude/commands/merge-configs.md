@@ -50,8 +50,9 @@ For files marked for decomposition, append a per-section table from `merge-confi
 
 ## Step 6 — Cleanup (inline)
 
-- Delete all `.backup` files processed.
-- Delete `.claude/.init-meta.json` if present.
+- Delete a `.backup` file ONLY if its corresponding merged file passed the post-merge budget guard (lint exit 0 or 1) — per `merge-strategy.md` § Post-merge budget guard.
+- For files left over budget (lint exit 2) and not resolvable in one decomposition pass, leave the `.backup` in place; surface them as a manual-resolution blocker.
+- Delete `.claude/.init-meta.json` if all `.backup` files cleaned up successfully.
 - Delete legacy `.claude/CLAUDE.md` if its content was merged into root `CLAUDE.md` and the user approved deletion in Step 5.
 
 ## Output (one line)
@@ -60,7 +61,9 @@ For files marked for decomposition, append a per-section table from `merge-confi
 Merged: <N merged> · <N restored> · <N skipped> · decomposed=<D> · size-warn=<W> · Next: /prime
 ```
 
-Omit `decomposed=` and `size-warn=` segments when zero. Per-file approval prompts in Steps 4 and 5.5 are blockers, not output. If post-merge `cli/file-size-check.js` returns exit 2, the merge does not produce a one-liner — it stops with the violating files listed.
+Omit `decomposed=` and `size-warn=` segments when zero. Per-file approval prompts in Steps 4 and 5.5 are blockers, not output. If the post-merge budget guard cannot bring a file under its hard cap in one decomposition pass, the merge stops with that file's `.backup` left in place and the violating file listed — no one-liner.
+
+Whenever any decomposition runs (pre- or post-merge), append a short audit entry to `.claude/.last-merge-log.md` listing each section moved (source file:lines → destination file:lines, side: user|framework). The user can review and revert from `.backup` files until cleanup deletes them in Step 6.
 
 ## Delegation
 
