@@ -53,6 +53,8 @@ var NEEDS_RESTORE = [
 var FRAMEWORK_CLI_FILES = [
   'cli/kb-search.js',
   'cli/lean-index.js',
+  'cli/merge-settings.js',
+  'cli/file-size-check.js',
 ];
 
 // Helper: normalize a path to project-root-relative format.

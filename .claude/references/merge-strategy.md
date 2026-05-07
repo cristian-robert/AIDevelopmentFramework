@@ -17,7 +17,7 @@ The strategy column gives the **default**. When `merge-configs/05-decompose.md`'
 | Agents — test patterns | `.claude/agents/tester-agent/**`, `mobile-tester-agent/**` | Always restore from backup |
 | KB content | `<kb-path>/**` | Always restore from backup |
 | Hooks | `.claude/hooks/*.sh` | User-edited → prompt; unchanged → discard |
-| Settings | `.claude/settings.local.json` | **Deep-merge** via `npx ai-development-framework merge-settings` (script source is `cli/merge-settings.js` in the framework repo; only the binary is available in consumer projects). Hook arrays union by `(matcher, type, command)` tuple — user entries preserved, framework entries added if missing, exact duplicates deduped. `permissions.allow` / `deny` arrays union-sorted-deduped. Other top-level keys: user value wins on scalar conflicts. Run `--dry-run` first to show the plan, then `--apply` on approval. |
+| Settings | `.claude/settings.local.json` | **Deep-merge** via `cli/merge-settings.js` (shipped to consumer projects via `FRAMEWORK_CLI_FILES`; `npx ai-development-framework merge-settings` is the equivalent fallback). Hook arrays union by `(matcher, type, command)` tuple — user entries preserved, framework entries added if missing, exact duplicates deduped. `permissions.allow` / `deny` arrays union-sorted-deduped. Other top-level keys: user value wins on scalar conflicts. Run `--dry-run` first to show the plan, then `--apply` on approval. |
 
 ## Process
 
@@ -48,7 +48,7 @@ Comparison rule: zero-pad missing fields (`0.4` is treated as `0.4.0`, `0.5` as 
 
 ## Notes on Settings
 
-The `.claude/settings.local.json` deep-merge is implemented in `cli/merge-settings.js` (framework repo only) and exposed to consumer projects via `npx ai-development-framework merge-settings`. Specifics:
+The `.claude/settings.local.json` deep-merge is implemented in `cli/merge-settings.js`. Since v0.6.2 the script is copied into consumer projects on `init`/`update` (alongside `kb-search.js`, `lean-index.js`, `file-size-check.js`), so `node cli/merge-settings.js …` works directly. The published binary `npx ai-development-framework merge-settings` runs the same script and exists as a fallback for older installs. Specifics:
 
 - **Hooks**: union by `(matcher, type, command)` tuple. User's existing entries are preserved in their original order; framework entries are appended only if not already present. Same matcher with a different command means the user customised one and the framework added a separate hook on the same trigger — both run.
 - **Permissions**: `allow` and `deny` arrays are union-sorted-deduped.

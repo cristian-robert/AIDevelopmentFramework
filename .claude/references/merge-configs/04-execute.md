@@ -20,9 +20,9 @@ For each file in the plan:
 - **Agents (architect/tester/mobile-tester)** — restore from backup verbatim.
 - **KB content** — restore from backup verbatim.
 - **Hooks** — diff old vs new; user-edited → prompt; unchanged → discard.
-- **Settings (`.claude/settings.local.json`)** — **deep-merge via the published binary**:
-  1. `npx ai-development-framework merge-settings --dry-run --user .claude/settings.local.json.backup --framework .claude/settings.local.json`. Show resulting JSON to user as the merge plan.
+- **Settings (`.claude/settings.local.json`)** — **deep-merge with `cli/merge-settings.js`**:
+  1. `node cli/merge-settings.js --dry-run --user .claude/settings.local.json.backup --framework .claude/settings.local.json`. Show resulting JSON to user as the merge plan.
   2. On approval, re-run with `--apply` (writes atomically: tmp file + rename).
-  3. Never call `node cli/merge-settings.js` directly — that path only exists in the framework's own repo, not in consumer projects where `/merge-configs` runs.
+  3. Fallback if the script is missing locally (pre-v0.6.2 install): `npx ai-development-framework merge-settings …` with the same flags.
   3. The "keep user / keep framework / manual edit" chooser is no longer used for hooks/permissions — it dropped one side or the other and broke setups in practice. Use the deep-merge.
   4. To skip the deep-merge (e.g., user wants to discard the framework's new hook entirely), hand-edit after merge runs — `--apply` is reversible from `.backup`.

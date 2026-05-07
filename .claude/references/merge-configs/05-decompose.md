@@ -58,7 +58,7 @@ For each row: show the source excerpt + proposed destination + the resulting one
 After applying a batch (e.g., all `## Backend` sections), run:
 
 ```bash
-npx ai-development-framework file-size-check --json
+node cli/file-size-check.js --json
 ```
 
 If the source file (typically `CLAUDE.md`) is still over budget, loop back to step 4 with the remaining sections highlighted. If a destination file went over its budget, the previous extraction was over-eager — propose a sub-extraction (further split into per-topic references) before continuing.
