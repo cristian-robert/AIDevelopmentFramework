@@ -37,7 +37,7 @@ Load `.claude/references/merge-strategy.md`. Assign each discovered file to a ca
 Trigger conditions for decomposition (per `merge-configs/05-decompose.md`):
 
 - `previousVersion` is missing, `unknown`, or compares below `0.5` (semver) → all in-scope user files go through decomposition.
-- `previousVersion >= 0.5` but `node cli/file-size-check.js --json` flags any user file as `level=warn` or `level=block` → decompose those files only.
+- `previousVersion >= 0.5` but `npx ai-development-framework file-size-check --json` flags any user file as `level=warn` or `level=block` → decompose those files only.
 - `--no-decompose` flag passed → skip; emit `[warn] decomposition skipped` in final output.
 
 Record the decision per file. Pass it to Step 4 / 5.5.

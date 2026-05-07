@@ -11,7 +11,7 @@ Checks installed plugins, skills, MCP servers, framework files. Reports gaps.
 3. **MCP servers** — see `setup/01-plugin-tables.md`.
 4. **Framework files** — see `setup/01-plugin-tables.md` (commands, rules, agents, references subdirs, hooks).
 5. **Design-artifact pipeline readiness** — see `setup/01-plugin-tables.md` (only when project commits design work).
-6. **Context guardrail** — `node cli/file-size-check.js` (always; per `_shared/file-size-guard.md`).
+6. **Context guardrail** — `npx ai-development-framework file-size-check` (always; per `_shared/file-size-guard.md`).
 
 ## Output (one line)
 

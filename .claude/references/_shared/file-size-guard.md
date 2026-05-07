@@ -31,8 +31,8 @@ When a file crosses its soft cap:
 
 ## Enforcement
 
-- `/evolve` Step 2.5 runs `node cli/file-size-check.js` on every invocation. Soft-cap warnings appear in the one-line output as `size-warn=N`. Hard-cap violations block the commit — `/evolve` must extract before it can finish.
-- Local checks: `node cli/file-size-check.js` (dry-run, prints table), `node cli/file-size-check.js --json` (machine-readable for hooks).
+- `/evolve` Step 2.5 runs `npx ai-development-framework file-size-check` on every invocation. Soft-cap warnings appear in the one-line output as `size-warn=N`. Hard-cap violations block the commit — `/evolve` must extract before it can finish.
+- Local checks: `npx ai-development-framework file-size-check` (dry-run, prints table), `npx ai-development-framework file-size-check --json` (machine-readable for hooks).
 - CI / hook integration is intentionally out of scope here — this is an LLM-facing guardrail, not a pre-commit gate. The check is fast enough that `/evolve` running it on every pass is sufficient.
 
 ## Adjusting the budgets

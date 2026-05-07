@@ -43,6 +43,18 @@ switch (command) {
     process.exit(result.status === null ? 1 : result.status);
     break;
   }
+  case 'file-size-check': {
+    // Same spawn pattern as merge-settings — file-size-check.js exits with
+    // 0/1/2 to signal ok/soft-warn/hard-block, which /evolve and /setup rely on.
+    const { spawnSync } = require('child_process');
+    const result = spawnSync(
+      process.execPath,
+      [require.resolve('./file-size-check.js'), ...process.argv.slice(3)],
+      { stdio: 'inherit' }
+    );
+    process.exit(result.status === null ? 1 : result.status);
+    break;
+  }
   case '--version':
   case '-v':
     console.log(require('../package.json').version);
@@ -65,6 +77,7 @@ Usage:
   npx ai-development-framework update        Update framework files to the latest version
   npx ai-development-framework lean-index    Rebuild the lean (metadata-only) KB index
   npx ai-development-framework merge-settings  Deep-merge user .claude/settings.local.json with framework version
+  npx ai-development-framework file-size-check Lint context files (CLAUDE.md, rules/, commands/, references/) against budgets
   npx ai-development-framework --version     Show version
   npx ai-development-framework --help        Show this help message
 

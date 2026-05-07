@@ -106,7 +106,7 @@ If none of the trigger conditions hold, this section is recommended-only: report
 Always run as part of `/setup`:
 
 ```bash
-node cli/file-size-check.js
+npx ai-development-framework file-size-check
 ```
 
 - Exit `0` → `[ok] context files within budget`

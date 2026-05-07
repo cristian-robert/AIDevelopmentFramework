@@ -25,7 +25,7 @@ If KB is off (per `_shared/kb-detect.md`) → write learnings to `.claude/.sessi
 Run the lint:
 
 ```bash
-node cli/file-size-check.js
+npx ai-development-framework file-size-check
 ```
 
 Exit codes drive the next action (per `.claude/references/_shared/file-size-guard.md`):

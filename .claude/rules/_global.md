@@ -23,7 +23,7 @@
 - `/evolve` after merging
 
 ## File-size guardrail
-- Context files have line-count budgets. Lint: `node cli/file-size-check.js`. Enforced by `/evolve` Step 2.5.
+- Context files have line-count budgets. Lint: `npx ai-development-framework file-size-check`. Enforced by `/evolve` Step 2.5.
 
 ## References
 - `.claude/references/_global-detail.md` — full KB integration + pipeline discipline
