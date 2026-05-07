@@ -4,10 +4,12 @@ Canonical reference for merging project-specific configuration with framework fi
 
 ## File Categories
 
+The strategy column gives the **default**. When `merge-configs/05-decompose.md`'s trigger conditions hold (pre-v0.5 user, or any user file over its `_shared/file-size-guard.md` budget), CLAUDE.md and Rules switch to decomposition instead of section-preserving merge.
+
 | Category | Files | Strategy |
 |----------|-------|----------|
-| CLAUDE.md | Project root | Section-preserving merge (preserve user sections, update framework sections) |
-| Rules | `.claude/rules/*.md` | Append user additions; dedupe |
+| CLAUDE.md | Project root, plus legacy `.claude/CLAUDE.md` if present | Section-preserving merge (default) OR decomposition (when triggered) |
+| Rules | `.claude/rules/*.md` | Append user additions + dedupe (default) OR decomposition (when triggered) |
 | Commands | `.claude/commands/*.md` | Diff vs previous framework version; user-edited → prompt; unchanged → discard backup |
 | References — project-specific | `.claude/references/code-patterns.md` | Always restore from backup |
 | References — templates | `.claude/references/*.md` (other) | Keep framework version |
@@ -28,8 +30,21 @@ For each `.backup` file found:
 
 ## Detection sources
 
-- `.claude/.init-meta.json` — presence indicates post-init merge pending
+- `.claude/.init-meta.json` — presence indicates post-init merge pending; `previousVersion` drives version-aware migration (see Cross-version migration below)
 - User-invoked via `/merge-configs` — scans for any `.backup` files plus optionally a user-supplied directory
+- Legacy `.claude/CLAUDE.md` — pre-v0.5 convention; treat as additional input for the CLAUDE.md merge
+
+## Cross-version migration
+
+`previousVersion` semantics (read from `.init-meta.json`):
+
+| `previousVersion` | Behavior |
+|-------------------|----------|
+| Missing / `unknown` | Treat as pre-compression. Decompose CLAUDE.md and rules per `merge-configs/05-decompose.md`. |
+| `<` `0.5` (semver) | Same as above — v0.4 and earlier shipped inline content that needs to be split into the slim-rule + references architecture. |
+| `>=` `0.5` | Default to splice merge. Per-file size lint may still trigger decomposition for any single file that ballooned. |
+
+Comparison rule: zero-pad missing fields (`0.4` is treated as `0.4.0`, `0.5` as `0.5.0`); compare numerically left to right.
 
 ## Notes on Settings
 

@@ -51,6 +51,9 @@ Install before starting:
 
 ### Task 1: [Component Name]
 
+**Size:** S | M | L | XL
+**Model:** haiku | sonnet | opus  *(per `.claude/references/subagent-model-selection.md` — sonnet for fully-specified S/M tasks; opus when the task body contains design language ("choose", "decide", "consider trade-offs") or is L/XL)*
+
 **Files:**
 - Create: `exact/path/to/file`
 - Modify: `exact/path/to/existing:lines`

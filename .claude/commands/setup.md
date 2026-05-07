@@ -1,106 +1,24 @@
 # /setup — Framework Health Check
 
-Checks what external plugins, skills, and MCP servers are installed and reports any gaps.
+Checks installed plugins, skills, MCP servers, framework files. Reports gaps.
 
-## Process
+**Output:** one line per `_shared/output-contract.md`.
 
-### Step 1: Check Plugins
+## Steps
 
-Verify each required plugin is installed. Present results as a checklist.
+1. **Plugins** — verify each in `setup/01-plugin-tables.md` (core + recommended + stack-specific).
+2. **Design-artifact skills** — see `setup/01-plugin-tables.md` (huashu-design + version-drift check).
+3. **MCP servers** — see `setup/01-plugin-tables.md`.
+4. **Framework files** — see `setup/01-plugin-tables.md` (commands, rules, agents, references subdirs, hooks).
+5. **Design-artifact pipeline readiness** — see `setup/01-plugin-tables.md` (only when project commits design work).
+6. **Context guardrail** — `node cli/file-size-check.js` (always; per `_shared/file-size-guard.md`).
 
-**Core Workflow (required):**
+## Output (one line)
 
-| Plugin | Install Command |
-|--------|----------------|
-| superpowers | `claude plugin install superpowers` |
-| feature-dev | `claude plugin install feature-dev` |
-| code-review | `claude plugin install code-review` |
-| commit-commands | `claude plugin install commit-commands` |
-| claude-md-management | `claude plugin install claude-md-management` |
-| security-guidance | `claude plugin install security-guidance` |
-| skill-creator | `claude plugin install skill-creator` |
+- **All checks pass:** `Setup OK · plugins=N MCP=N framework=ok · Next: /prime`
+- **Recommended items missing:** `Setup OK with N recommended missing · Next: /prime (or install: <one-liner>)`
+- **Required items missing:** **blocker** — print exact install commands grouped by category and stop.
+- **Drift detected on huashu-design:** **blocker** — show both hashes + brand-spec re-verification step.
+- **Context guardrail blocked (`size-check` exit 2):** **blocker** — print the violating files and tell the user to run `/evolve`.
 
-**Framework Support (recommended):**
-
-| Plugin | Install Command |
-|--------|----------------|
-| firecrawl | `claude plugin install firecrawl` |
-| frontend-design | `claude plugin install frontend-design` |
-| claude-code-setup | `claude plugin install claude-code-setup` |
-| agent-sdk-dev | `claude plugin install agent-sdk-dev` |
-
-**Stack-Specific (install what applies):**
-
-| Plugin | When Needed | Install Command |
-|--------|------------|----------------|
-| context7 | Any framework/library project | `claude plugin install context7` |
-| supabase | Supabase projects | `claude plugin install supabase` |
-| typescript-lsp | TypeScript projects | `claude plugin install typescript-lsp` |
-| expo-app-design | Expo/React Native projects | `claude plugin install expo-app-design --marketplace expo-plugins` |
-
-### Step 1.5: Check Design-Artifact Skills + Version Drift
-
-Verify external skills used for design artifacts (HTML prototypes, slide decks, motion, infographics):
-
-| Skill | Install Command | Detection |
-|-------|----------------|-----------|
-| huashu-design | `npx skills add alchaincyf/huashu-design` | Check `~/.claude/skills/huashu-design/SKILL.md` exists |
-
-Required vs. recommended:
-- If the project commits design work to `design/` OR has `.design-system/brand-spec.md`, treat huashu-design as **required** and report `[missing]` if absent.
-- Otherwise report it as a **recommended** skill the user can install on demand.
-
-**Version-drift check (only if huashu-design is installed):**
-
-1. Read `.claude/.versions.json` → `external_skills.huashu-design.skill_md_sha256`.
-2. Compute the installed file's hash:
-   ```bash
-   shasum -a 256 ~/.claude/skills/huashu-design/SKILL.md | awk '{print $1}'
-   ```
-3. Compare:
-   - **Pin empty** (`""`) → first-run population. Update `.claude/.versions.json` with the computed hash + today's date. Report `[ok] huashu-design — pinned at <short-hash>`.
-   - **Hashes match** → report `[ok] huashu-design — pinned at <short-hash>`.
-   - **Hashes differ** → report `[warn] huashu-design — drifted from pinned version`. Show both hashes (short form). Tell the operator: "The brand-spec.md schema in `.claude/.versions.json#schema_contract` may have changed. Run `/brand-extract` against a known-good project and confirm it still produces a spec with the expected sections before relying on the design path."
-4. **Never auto-update** the pin on drift — only on first-run empty-pin population. The pin is meant to flag drift, not silently accept it.
-
-### Step 2: Check MCP Servers
-
-Verify project-level MCP server configuration if applicable:
-- shadcn — for shadcn/ui component projects
-- context7 — for documentation lookup
-- supabase — for database operations
-- mobile-mcp — for mobile testing
-
-### Step 3: Check Framework Files
-
-Verify .claude/ structure is complete:
-- commands/ (10 files)
-- agents/ (4 agents + template)
-- rules/ (6 rules + template)
-- references/ (5 templates)
-- hooks/ (5 scripts)
-- settings.local.json
-
-### Step 4: Report
-
-```
-=== Framework Health Check ===
-
-Plugins:
-  [check] superpowers
-  [check] feature-dev
-  [missing] firecrawl — run: claude plugin install firecrawl
-
-MCP Servers:
-  [check] context7
-  [missing] shadcn — add to .mcp.json if using shadcn/ui
-
-Framework Files:
-  [check] .claude/commands/ (10 commands)
-  [check] .claude/agents/ (4 agents)
-  [check] .claude/rules/ (6 rules)
-  [check] .claude/references/ (5 templates)
-  [check] .claude/hooks/ (5 hooks)
-
-Status: Ready (install missing items above for full functionality)
-```
+`/setup --verbose` is the only mode that prints the full per-plugin / per-MCP / per-file table. Default mode reports gaps, not green checks.

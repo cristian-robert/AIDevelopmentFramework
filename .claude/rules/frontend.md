@@ -5,52 +5,27 @@ globs: ["**/web/**", "**/frontend/**", "**/app/**", "**/*.tsx", "**/*.jsx", "**/
 
 # Frontend Rules
 
-## Design Skill Gate (MANDATORY)
+## Design Skill Gate (mandatory before any UI work)
+- Production code → ask 3-way (`/frontend-design` | `/frontend-aesthetics` | `/ui-ux-pro-max`)
+- Design artifacts (mockup/prototype/deck/motion/infographic) → `huashu-design`
+- Hybrid → huashu-design first, handoff bundle → `/execute` for code phase
 
-**Step 0 — branch by deliverable type:**
+Full gate logic + skill-chain steps: `.claude/references/frontend-detail.md`.
 
-- **Production app code** (React components, pages, routes, real shipping UI) → ask the 3-way question below
-- **Design artifacts** (clickable HTML prototype, slide deck, motion piece, infographic, mockup, pitch one-pager) → use **`huashu-design`** (`npx skills add alchaincyf/huashu-design`). Pre-step: run `/brand-extract` if `.design-system/brand-spec.md` is missing — it amortizes huashu's Core Asset Protocol across the project so the skill doesn't re-ask for brand assets every run.
-- **Hybrid** (artifact → real implementation) → huashu-design first, then the artifact's handoff bundle feeds `/execute` for the production code path.
+## Top conventions (load-bearing)
+- Functional components + hooks
+- Forms: React Hook Form + Zod
+- State: server-first (RQ/SWR)
+- a11y: semantic HTML, ARIA, keyboard nav
 
-**Step 1 — production-code 3-way (only when not using huashu-design):**
-
-1. **`/frontend-design`** — Full page/component creation with bold aesthetics
-2. **`/frontend-aesthetics`** — Lightweight guardrails (typography, color, motion)
-3. **`/ui-ux-pro-max`** — Design planning and exploration (50 styles, 21 palettes)
-
-`/frontend-aesthetics` combines with either other. Never combine `/frontend-design` + `/ui-ux-pro-max` — they conflict.
-
-## Skill Chain
-
-1. **KB search** (if KB configured) — search for relevant route/component/feature articles
-2. **architect-agent RETRIEVE** — understand page/component structure
-3. **Design skill** — chosen via gate above
-4. **shadcn MCP** — `search_items_in_registries`, `view_items_in_registries`, `get_add_command_for_items`
-5. **context7 MCP** — verify framework API (Next.js, React, etc.)
-6. **tester-agent VERIFY/FLOW** — verify UI after implementation
-7. **KB update** (if KB configured) — update wiki articles for new/changed routes, pages, components
-
-## Conventions
-
-- Functional components with hooks
-- Forms: React Hook Form + Zod validation
-- State: prefer server state (React Query/SWR) over client state
-- Styling: follow project convention (Tailwind, CSS Modules, etc.)
-- Accessibility: semantic HTML, ARIA labels, keyboard navigation
-
-## Checklist
-
-- [ ] Design skill gate answered before any UI creation
-- [ ] tester-agent VERIFY/FLOW run after implementation
-- [ ] Accessibility: keyboard nav + ARIA labels + semantic HTML
-- [ ] Form inputs validated (Zod schema) with inline error surfaces
-- [ ] KB wiki articles updated for new/changed routes or components
+## Critical checklist
+- [ ] Design skill gate answered before UI creation
+- [ ] tester-agent VERIFY/FLOW after implementation
+- [ ] a11y verified
+- [ ] KB wiki updated for new/changed routes or components
 
 ## References
-
-Load only when the rule triggers:
-
-- `.claude/references/code-patterns.md` — load for project-specific component patterns
-- `<kb-path>/wiki/_index.md` — search for existing route/component/feature articles before building
-- `.claude/rules/frontend-antislop.md` — load for every UI change
+- `.claude/references/frontend-detail.md` — full gate, skill chain, conventions
+- `.claude/rules/frontend-antislop.md` — co-loads on every UI change
+- `.claude/references/code-patterns.md` — project-specific component patterns
+- `<kb-path>/wiki/_index.md` — search before building

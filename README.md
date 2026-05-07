@@ -184,7 +184,7 @@ npx ai-development-framework --help           Show help
 - [Command Reference](docs/command-reference.md) — All commands
 - [Customization](docs/customization.md) — Adding agents, rules, skills, knowledge base
 - [Plugin Install Guide](docs/plugin-install-guide.md) — Dependencies
-- [Changelog](docs/changelog/) — v0.4 (PIV+E hardening), v0.5 (design-artifact pipeline)
+- [Changelog](docs/changelog/) — v0.4 (PIV+E hardening), v0.5 (design-artifact pipeline), v0.6 (context budgets + /merge-configs decomposition)
 
 ## Credits
 

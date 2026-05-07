@@ -5,37 +5,26 @@ globs: ["**/auth/**", "**/authentication/**", "**/login*", "**/register*", "**/s
 
 # Security Rules
 
-## Skill Chain
+## Skill chain
+architect-RETRIEVE → context7 verify (passport/bcrypt/helmet/…) → implement per `.claude/references/security-checklist.md` → architect-RECORD. `/validate` Phase 2.5 + `/ship` Step 1.6 enforce the checklist.
 
-1. **architect-agent RETRIEVE** — understand current auth/security architecture before changes
-2. **context7 MCP** — verify framework security APIs (passport, bcrypt, helmet, etc.)
-3. **Implement** — follow the full checklist in `.claude/references/security-checklist.md`
-4. **architect-agent RECORD** — update knowledge base after security-related changes
-5. Run `/validate` (Phase 2.5) and `/ship` (Step 1.7) — both enforce the checklist
+## Load-bearing rules (the ones that actually break prod)
+- Passwords: bcrypt ≥12 / argon2; never plaintext
+- Tokens: httpOnly cookies; never localStorage
+- Auth on every route; authz on every object access
+- Inputs: schema-validated (Zod/Joi); no SQL string concat
+- Secrets: env vars only
+- Errors: no stack traces, paths, or internals leaked
+- CORS: specific origins, no `*`
 
-## Conventions
-
-- Passwords hashed with bcrypt (≥12 rounds) or argon2 — never plaintext
-- Tokens in httpOnly cookies — never localStorage
-- Every route verifies authentication; every object access verifies authorization
-- Inputs validated with schema validation (Zod, Joi, etc.); no SQL string concatenation
-- Secrets in env vars only — never committed, never in source
-- Error messages never reveal stack traces, file paths, or system internals
-- CORS restricted to specific origins — no wildcard `*` in production
-
-## Checklist
-
-- [ ] Full `.claude/references/security-checklist.md` run before `/ship`
-- [ ] `npm audit` shows no critical vulnerabilities
-- [ ] No hardcoded credentials or secrets anywhere in the diff
-- [ ] `.env` absent from git history (`git log -- .env` empty)
-- [ ] Auth + authz verified on every new or modified route
-- [ ] Rate limiting in place on public-facing endpoints
+## Critical checklist (pre-ship)
+- [ ] Full `.claude/references/security-checklist.md` run
+- [ ] `npm audit` no criticals
+- [ ] No hardcoded credentials in diff
+- [ ] `.env` absent from git history
+- [ ] Rate limiting on public endpoints
 
 ## References
-
-Load only when the rule triggers:
-
-- `.claude/references/security-checklist.md` — load for the authoritative pre-ship checklist (auth, API, code, infra)
-- `.claude/references/backend-detail.md` — load for auth/authz implementation detail and logging rules
-- `<kb-path>/wiki/_index.md` — search for existing auth/session/security decision articles before changing behavior
+- `.claude/references/security-checklist.md` — authoritative pre-ship checklist
+- `.claude/references/backend-detail.md` — auth/authz implementation + logging
+- `<kb-path>/wiki/_index.md` — search auth/session/security decision articles

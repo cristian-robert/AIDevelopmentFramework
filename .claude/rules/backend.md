@@ -5,49 +5,33 @@ globs: ["**/backend/**", "**/server/**", "**/api/**", "**/*.controller.*", "**/*
 
 # Backend Rules
 
-## Skill Chain
+## Skill chain (summary)
+KB search → architect-RETRIEVE → context7 verify → implement → architect-RECORD → KB update. Full: `.claude/references/backend-skill-chain.md`.
 
-1. **KB search** (if KB configured) — `KB_PATH=<path> node cli/kb-search.js search "<keywords>"`
-2. **architect-agent RETRIEVE** — understand current module structure before changes
-3. **context7 MCP** — verify framework API (NestJS, FastAPI, Express, etc.)
-4. **Database MCP** — if schema changes needed (Supabase MCP or direct SQL)
-5. **Implement** — follow patterns from `.claude/references/code-patterns.md`
-6. **architect-agent RECORD** — update knowledge base after structural changes
-7. **KB update** (if KB configured) — update wiki articles for new/changed modules, endpoints, patterns
+## Top conventions
+- Endpoints validate input (DTO/schema)
+- Business logic in services, not controllers
+- Auth on every route; authz on every object access
+- No hardcoded secrets
 
-## Conventions
+## Top 5 security defaults (most-missed)
+- Passwords: bcrypt/argon2 ≥12 rounds
+- Tokens: httpOnly cookies, never localStorage
+- Input validation on every endpoint
+- CORS: allowlisted domains, never `*`
+- Secrets in env vars only
 
-- Every endpoint has input validation (DTOs/schemas)
-- Business logic lives in services, not controllers
-- Error responses follow `{ error: string, statusCode: number }`
-- Database queries go through a repository/service layer
-- No hardcoded secrets — env vars only
-- Authentication verified on every route; authorization on every object access
+Full backend security checklist + token rotation, lockouts, rate-limiting, audit, etc.: `.claude/references/backend-detail.md` + `.claude/references/security-checklist.md` (load when touching auth/sessions/public endpoints).
 
-## Security (critical — full list in `.claude/references/backend-detail.md`)
-
-These five items are the most-frequently-missed defaults. The full backend security checklist (token storage, refresh rotation, rate limiting, lockouts, CORS, audit, etc.) lives in `backend-detail.md` and `security-checklist.md` — load those when touching auth, sessions, or any public endpoint.
-
-- Passwords hashed with bcrypt/argon2 (min 12 rounds) — never plaintext
-- Tokens in httpOnly cookies — never localStorage
-- Input validation on every endpoint (DTOs/schemas)
-- CORS restricted to allowlisted domains — never `*`
-- No hardcoded secrets — env vars only
-
-## Checklist
-
-- [ ] All endpoints authenticated + authorized
-- [ ] All inputs validated (DTOs/schemas)
-- [ ] No sensitive fields (hashes, tokens, PII) in API responses
-- [ ] `npm audit` clean of critical vulnerabilities
+## Critical checklist
+- [ ] Auth + authz on every new/modified route
+- [ ] All inputs validated
+- [ ] No PII/hashes/tokens in API responses
 - [ ] Wiki articles updated for structural changes
-- [ ] Tests added/updated per the testing-by-layer pattern
 
 ## References
-
-Load only when the rule triggers:
-
-- `.claude/references/backend-detail.md` — load for error formats, DI/layering, logging, testing-by-layer
-- `.claude/references/security-checklist.md` — load for any auth, API, or infra change
-- `.claude/references/code-patterns.md` — load for project-specific code patterns
-- `<kb-path>/wiki/_index.md` — search and load feature articles when touching endpoints
+- `.claude/references/backend-skill-chain.md` — full skill chain + conventions
+- `.claude/references/backend-detail.md` — error formats, DI/layering, logging, testing-by-layer
+- `.claude/references/security-checklist.md` — auth/API/infra security
+- `.claude/references/code-patterns.md` — project patterns
+- `<kb-path>/wiki/_index.md` — search feature articles before touching endpoints

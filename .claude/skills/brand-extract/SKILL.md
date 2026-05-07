@@ -360,7 +360,7 @@ Suggested message (you can override in /commit):
 If KB is configured (`CLAUDE.md` has a `## Knowledge Base` section with a `Path:` value), suggest:
 
 ```
-After /commit, run /kb ingest .design-system/brand-spec.md to make the spec
+After /commit, run /kb-ingest .design-system/brand-spec.md to make the spec
 searchable from /prime and /execute.
 ```
 

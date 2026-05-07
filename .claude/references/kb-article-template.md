@@ -1,6 +1,6 @@
 # Wiki Article Templates
 
-Used by `/kb ingest`, `/kb compile`, and pipeline commands when creating or updating wiki articles. All wiki articles live in `<kb-path>/wiki/` as flat files.
+Used by `/kb-ingest`, `/kb-compile`, and pipeline commands when creating or updating wiki articles. All wiki articles live in `<kb-path>/wiki/` as flat files.
 
 **Security:** Wiki articles are committed to git. NEVER store actual secret values (API keys, tokens, passwords) in any article. Store only metadata: which env vars are needed, which services are used, who owns credentials. Actual secrets belong in `.env` files, secret managers, or CI/CD variables.
 
@@ -22,7 +22,7 @@ Used by `/kb ingest`, `/kb compile`, and pipeline commands when creating or upda
 
 ## Full Article Template
 
-Created by `/kb compile` or manually for rich, well-developed articles.
+Created by `/kb-compile` or manually for rich, well-developed articles.
 
 ```markdown
 ---
@@ -62,7 +62,7 @@ status: draft | active | archived
 
 ## Stub Article Template
 
-Created during `/kb ingest` for new sources before full compilation. Minimal viable article — expand later with `/kb compile`.
+Created during `/kb-ingest` for new sources before full compilation. Minimal viable article — expand later with `/kb-compile`.
 
 ```markdown
 ---
@@ -198,8 +198,8 @@ Each ingested source gets one row in `raw/_manifest.md`. The manifest tracks wha
 - **Date**: ingestion date (YYYY-MM-DD)
 - **Type**: article, paper, doc, repo, session
 - **Raw File**: path to the raw file within the KB
-- **Status**: `pending` (just ingested) → `compiled` (woven into a wiki article by `/kb compile`)
-- **Wiki Article**: filename of the wiki article (filled by `/kb compile`, `—` until then)
+- **Status**: `pending` (just ingested) → `compiled` (woven into a wiki article by `/kb-compile`)
+- **Wiki Article**: filename of the wiki article (filled by `/kb-compile`, `—` until then)
 
 Full manifest file structure:
 
@@ -220,7 +220,7 @@ Tracks all ingested sources and their compilation status.
 
 ### `wiki/_index.md` — Master Article Index
 
-Grouped by article type. Updated by `/kb ingest` and `/kb compile`.
+Grouped by article type. Updated by `/kb-ingest` and `/kb-compile`.
 
 ```markdown
 # Wiki Index
@@ -260,7 +260,7 @@ _Last updated: YYYY-MM-DD — N articles_
 
 ### `wiki/_tags.md` — Tag Registry
 
-Tag registry with article counts and links. Updated by `/kb ingest` and `/kb compile`.
+Tag registry with article counts and links. Updated by `/kb-ingest` and `/kb-compile`.
 
 ```markdown
 # Tag Registry

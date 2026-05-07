@@ -2,62 +2,66 @@
 
 Usable any time: post-init, after manual framework upgrade, after repo merge, or when adopting the framework mid-project.
 
-## Arguments
+**Args:** `$ARGUMENTS` = optional path to a user config directory (defaults to scanning current repo for `.backup` files and `.claude/.init-meta.json`).
 
-- `$ARGUMENTS` — optional path to a user config directory to merge (defaults to scanning current repo for `.backup` files and `.claude/.init-meta.json`)
+**Output:** one line per `_shared/output-contract.md`.
 
-## Process
+## Steps
 
-### Step 1: Discover
+| # | Step | Reference / inline |
+|---|------|-------------------|
+| 1 | Discover (init marker, .backup files, optional `$ARGUMENTS` path) | inline |
+| 2 | Categorize (per `.claude/references/merge-strategy.md`) | inline |
+| 3 | Detect version + decide decomposition need | inline |
+| 4 | Plan (per-file table grouped by category, plus decomposition rows) | inline |
+| 5 | Execute (per-file approval + category-specific logic) | `merge-configs/04-execute.md` |
+| 5.5 | Decompose monolithic user content into framework architecture (when triggered by Step 3) | `merge-configs/05-decompose.md` |
+| 6 | Cleanup (delete `.backup` files + `.init-meta.json`) | inline |
+| 7 | Output | inline |
 
-1. Check for `.claude/.init-meta.json` (post-init marker). If present, read it for the list of backed-up files and version info.
-2. Find all `*.backup` files under the repo:
-   ```
-   find . -name "*.backup" -not -path "./node_modules/*" -not -path "./.git/*"
-   ```
-3. If `$ARGUMENTS` is provided: also scan that directory for `CLAUDE.md`, `.claude/**`, and the configured KB path (e.g., `.obsidian/**`). Treat files found there as the "user" side and the current repo copies as the "framework" side.
+## Step 1 — Discover (inline)
 
-If nothing is found: exit with "No config to merge."
+1. Check `.claude/.init-meta.json`. If present → read it for backed-up files + `previousVersion` + `newVersion`.
+2. `find . -name "*.backup" -not -path "./node_modules/*" -not -path "./.git/*"`.
+3. Check for legacy `.claude/CLAUDE.md` (pre-v0.5 convention). If found → add to discovery list.
+4. If `$ARGUMENTS` provided → scan that directory for `CLAUDE.md`, `.claude/**`, configured KB path. Treat as "user" side; current repo copies as "framework" side.
 
-### Step 2: Categorize
+If nothing found → exit one-liner: `No config to merge · Next: /prime`.
 
-Load `.claude/references/merge-strategy.md`. For every discovered file, assign a category from the table (CLAUDE.md, Rules, Commands, References — project-specific, References — templates, Agents — project KB, Agents — test patterns, KB content, Hooks, Settings).
+## Step 2 — Categorize (inline)
 
-### Step 3: Plan
+Load `.claude/references/merge-strategy.md`. Assign each discovered file to a category from its table.
 
-Present a per-file plan to the user grouped by category. For each entry show:
-- File path
-- Category and strategy
-- A short diff preview for merge-requiring cases (CLAUDE.md sections, Rules, Commands, Hooks, Settings)
+## Step 3 — Detect version + decide decomposition need (inline)
 
-### Step 4: Execute (per-file approval)
+Trigger conditions for decomposition (per `merge-configs/05-decompose.md`):
 
-For each file in the plan:
-1. Show the file + strategy
-2. Ask: **apply / skip / show full diff / edit**
-3. Apply on approval; track applied/skipped counts
+- `previousVersion` is missing, `unknown`, or compares below `0.5` (semver) → all in-scope user files go through decomposition.
+- `previousVersion >= 0.5` but `node cli/file-size-check.js --json` flags any user file as `level=warn` or `level=block` → decompose those files only.
+- `--no-decompose` flag passed → skip; emit `[warn] decomposition skipped` in final output.
 
-Category-specific execution:
-- **CLAUDE.md** — identify project sections in the backup (`## Tech Stack`, `## Knowledge Base`, `## Design Skill Preference`, `## QA Tools`, user-added sections not in framework template); splice into new template; write merged file
-- **Rules** — diff old vs new; extract user-added conventions, checklist items, skill-chain lines; append to new file; dedupe
-- **Commands** — compare backup to the PREVIOUS framework version. Identical → silent discard. User-modified → show diff, prompt for keep/merge/drop
-- **References — `code-patterns.md`** — restore from backup verbatim
-- **References — other** — discard backup (framework templates)
-- **Agents (architect/tester/mobile-tester)** — restore from backup verbatim
-- **KB content** — restore from backup verbatim
-- **Hooks** — diff old vs new; user-edited → prompt; unchanged → discard
-- **Settings (`.claude/settings.local.json`)** — **deep-merge with `cli/merge-settings.js`**:
-  1. Run `node cli/merge-settings.js --dry-run --user .claude/settings.local.json.backup --framework .claude/settings.local.json` (or analogous paths for the user/framework copies). The script unions hook arrays by `(matcher, type, command)` tuple, unions `permissions.allow`/`deny`, and lets user values win on scalar conflicts. Show the resulting JSON to the user as the merge plan.
-  2. On approval, run the same command with `--apply` instead of `--dry-run` (it writes atomically: tmp file + rename).
-  3. The "keep user / keep framework / manual edit" chooser is no longer used for the hooks/permissions case — it dropped one side or the other and broke setups in practice. Use the deep-merge.
-  4. If the user wants to skip the deep-merge for some reason (e.g. they want to discard the framework's new hook entirely), they can still hand-edit the file after the merge runs — `--apply` is reversible from the `.backup`.
+Record the decision per file. Pass it to Step 4 / 5.5.
 
-### Step 5: Cleanup
+## Step 4 — Plan (inline)
 
-- Delete all `.backup` files that were processed
-- Delete `.claude/.init-meta.json` if present
-- Report: **N merged, N restored, N skipped**
+Per-file table grouped by category. Each entry: file path · category + strategy · short diff preview for merge-requiring cases.
+
+For files marked for decomposition, append a per-section table from `merge-configs/05-decompose.md` step 3.
+
+## Step 6 — Cleanup (inline)
+
+- Delete all `.backup` files processed.
+- Delete `.claude/.init-meta.json` if present.
+- Delete legacy `.claude/CLAUDE.md` if its content was merged into root `CLAUDE.md` and the user approved deletion in Step 5.
+
+## Output (one line)
+
+```
+Merged: <N merged> · <N restored> · <N skipped> · decomposed=<D> · size-warn=<W> · Next: /prime
+```
+
+Omit `decomposed=` and `size-warn=` segments when zero. Per-file approval prompts in Steps 4 and 5.5 are blockers, not output. If post-merge `cli/file-size-check.js` returns exit 2, the merge does not produce a one-liner — it stops with the violating files listed.
 
 ## Delegation
 
-`/start` Step 0 delegates to this command when `.claude/.init-meta.json` is found. No merge logic is duplicated between the two commands — `.claude/references/merge-strategy.md` is the single source of truth.
+`/start` Step 0 delegates here when `.claude/.init-meta.json` is found. No merge logic is duplicated — `.claude/references/merge-strategy.md` is the single source of truth.

@@ -5,36 +5,27 @@ globs: ["**/*.test.*", "**/*.spec.*", "**/test/**", "**/tests/**", "**/__tests__
 
 # Testing Rules
 
-## Skill Chain
+## Skill chain
+Check existing tests for the area (prefer extending) → spawn test-planning subagent for QA E2E (sonnet, plans only) → implement unit + integration + QA E2E per matrix → run locally before shipping.
 
-1. Check existing test files for the feature area — prefer adding to existing over creating new
-2. For QA test planning, spawn a test-planning subagent (plans placement, does not write tests)
-3. **Implement** — unit + integration + QA E2E per the matrix in the detail reference
-4. Run tests locally before shipping
+## Load-bearing rules
+- Name tests by behavior (`it('returns 404 when user not found')`)
+- AAA structure with visual separation
+- Cover happy / edge / error paths; skip framework internals
+- Real DBs for integration; mock only external services
+- Never mock the module under test; prefer DI
+- QA E2E mandatory after every dev task
+- Test creds from env (`TEST_USER_EMAIL` etc.); never hardcoded
 
-## Conventions
-
-- Name tests by behavior, not implementation (`it('returns 404 when user not found')`)
-- Arrange / Act / Assert structure with visual separation
-- Cover happy path, edge cases, and error cases — skip framework internals
-- Use real DBs for integration tests where possible; mock only external services
-- Never mock the module under test; prefer DI over module mocking
-- QA automation (API/Browser/Mobile E2E) is mandatory after every dev task, not just unit tests
-- Test credentials come from env (`TEST_USER_EMAIL` etc.) — never hardcoded
-
-## Checklist
-
+## Critical checklist
 - [ ] Tests describe behavior, not implementation
-- [ ] Happy path, edge cases, and error cases covered for new code
-- [ ] No new test file created when one already exists for the feature area
-- [ ] QA E2E tests added/updated per the domain matrix
-- [ ] No hardcoded credentials — reads from env or GitHub secrets
+- [ ] Happy + edge + error covered for new code
+- [ ] No new test file when one exists for the area
+- [ ] QA E2E added/updated per domain matrix
+- [ ] No hardcoded credentials
 - [ ] All tests pass locally before shipping
 
 ## References
-
-Load only when the rule triggers:
-
-- `.claude/references/testing-detail.md` — load for AAA structure, mock policy detail, QA matrix, placement rules, test users
-- `.claude/references/security-checklist.md` — load for security-sensitive test areas (auth, authz, input validation)
-- `<kb-path>/wiki/_index.md` — search for feature articles to align tests with documented behavior
+- `.claude/references/testing-detail.md` — AAA detail, mock policy, QA matrix, placement, test users
+- `.claude/references/security-checklist.md` — auth/authz/input-validation test areas
+- `<kb-path>/wiki/_index.md` — feature articles for test alignment

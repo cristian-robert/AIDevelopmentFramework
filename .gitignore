@@ -36,6 +36,15 @@ build/
 # Spec-reviewer enforcement marker (transient, per /execute run)
 .claude/.last-impl-task
 
+# Context-reset gate marker (transient, dedupes /plan-feature → /execute handoff)
+.claude/.context-fresh-ack
+
+# Autonomous-mode flag (per-project opt-out of confirmation prompts)
+.claude/.autonomous-mode
+
+# Auto-evolve dedup marker (transient, dedupes /validate auto-evolve vs /ship fallback)
+.claude/.evolve-ran
+
 # Backup files from init/update (temporary, consumed by /start merge)
 *.backup
 .firecrawl/

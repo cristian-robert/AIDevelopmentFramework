@@ -5,37 +5,26 @@ globs: ["**/migrations/**", "**/*.sql", "**/schema*", "**/prisma/**", "**/drizzl
 
 # Database Rules
 
-## Skill Chain
+## Skill chain
+KB search → Supabase MCP (`list_tables` → `execute_sql` → `apply_migration` → `get_advisors`) OR `/supabase-postgres-best-practices` OR `/mongodb` per stack.
 
-1. **KB search** (if KB configured) — search for relevant schema/database articles before starting
-2. **Supabase MCP** (if using Supabase): `list_tables` → `execute_sql` → `apply_migration` → `get_advisors`
-3. **`/supabase-postgres-best-practices`** — for schema design and query optimization
-4. **`/mongodb`** or **`/mongodb-development`** — if using MongoDB
+## Load-bearing rules
+- Every migration is reversible (up AND down)
+- Never modify existing migrations — create new ones
+- Index frequently queried columns
+- FK constraints for referential integrity
+- RLS on all user-facing tables (Supabase)
+- No SQL string concat — parameterized or ORM only
+- App connects with limited-permission DB user, never root
 
-## Conventions
-
-- Every migration is reversible (include up AND down)
-- Never modify existing migrations — always create a new one
-- Add indexes for frequently queried columns
-- Use foreign key constraints for referential integrity
-- RLS policies on all user-facing tables (Supabase)
-- No SQL string concatenation — parameterized queries or ORM only
-- App connects with a limited-permission DB user — never root
-
-## Checklist
-
-After any schema change:
-
-- [ ] Supabase advisors (`get_advisors`) or equivalent linter clean
-- [ ] RLS policies verified to still work
-- [ ] TypeScript types regenerated (`generate_typescript_types` or equivalent)
-- [ ] architect-agent knowledge base updated
-- [ ] KB wiki articles updated for schema changes (if KB configured)
-- [ ] Backup + restore procedure still valid for new schema
+## Critical checklist (post-schema-change)
+- [ ] `get_advisors` (Supabase) or equivalent linter clean
+- [ ] RLS policies still work
+- [ ] TypeScript types regenerated
+- [ ] architect-agent KB updated
+- [ ] KB wiki updated for schema changes
+- [ ] Backup/restore still valid for new schema
 
 ## References
-
-Load only when the rule triggers:
-
-- `.claude/references/security-checklist.md` — load for DB infrastructure/security checks (encryption at rest, network isolation, backups)
-- `<kb-path>/wiki/_index.md` — search for existing schema/domain articles before DDL changes
+- `.claude/references/security-checklist.md` — DB security (encryption at rest, network isolation, backups)
+- `<kb-path>/wiki/_index.md` — search schema/domain articles before DDL
